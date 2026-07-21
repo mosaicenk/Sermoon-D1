@@ -8,6 +8,89 @@ Versiyonlama: Sermoon-D1-X.Y[-suffix] (X = major iyileştirme, Y = minor)
 
 ---
 
+## [Sermoon-D1-2.2] — 2026-07-21
+
+Ölü kod temizliği. **Firmware davranışı değişmedi** — üretilen binary 2.1 ile
+bit-bit aynıdır (SHA256 `E0CDBDE9…547E`, 184.196 byte). Bu, kaynak düzeyinde
+bir sürümdür; **yeniden flash gerekmez.**
+
+### Added
+
+- **Git deposu.** Proje bugüne kadar versiyon kontrolsüzdü. Temizlikten önce
+  `1d2ba27` taban commit'i oluşturuldu; silinen her dosya oradan geri alınabilir.
+
+### Removed — 111 dosya
+
+Hepsinin binary'ye katkısı `arm-none-eabi-size` ile **0 byte** ölçüldü;
+silinmeleri ölçülebilir şekilde davranışsızdır.
+
+- **99 `.cpp`** — config tarafından tamamen `#if`'lenmiş kaynaklar:
+  - Tabla tesviye / probe: `probe.cpp`, `bedlevel/**` (ABL, UBL, MBL),
+    `gcode/probe/*` (G30, G31, G38, M401, M851, M951),
+    `gcode/bedlevel/*` (G29, G26, G42, M420, M421), `M48`, `G425`
+  - Diğer sürücüler: `L6470.cpp`, `TMC26X.cpp`, `trinamic.cpp`, `tmc_util.cpp`,
+    `M122`, `M569`, `M906`, `M911-M914` — bizde TMC2208 **standalone** (UART yok)
+  - Delta/SCARA kinematiği: `G33`, `M665`, `M666`
+  - Servo: `Servo.cpp`, `servo.cpp`, `M280`, `M281`
+  - Spindle/lazer: `M3-M5`, `M7-M9`
+  - Çoklu ekstruder: `M217`, `M218`, `M605`
+  - SPI SD kart: `Sd2Card.cpp` — bu kartta **SDIO** kullanılıyor
+  - Alternatif EEPROM yolları: `eeprom_i2c.cpp`, `eeprom_spi.cpp`,
+    `persistent_store_eeprom.cpp`, `persistent_store_flash.cpp`
+  - Karakter LCD: `ultralcd.cpp`, `lcdprint.cpp`, `buzzer.cpp`, `M250`, `M300`
+  - Çeşitli: `filwidth`, `twibus`, `power`, `binary_stream`, `backlash`,
+    `cancel_object`, `e_parser`, `hotend_idle`, `repeat`, `M43`, `M100`
+- **12 `.h`** — hiçbir yerden include edilmeyen yetim başlıklar:
+  `language_tr.h` (aktif dil `en`), `pinsDebug.h`, `pinsDebug_list.h`,
+  `onboard_sd.h`, `HAL_ST7920.h`, `MarlinSerial.h`, `servo_private.h`,
+  `bug_on.h`, `thermistornames.h`, `bresenham.h`, `least_squares_fit.h`,
+  `HAL_STM32F1/pinsDebug.h`
+
+`inc/Warnings.cpp` **korundu** — derleme zamanı uyarılarını üreten altyapı.
+
+### Changed — `pins_CREALITY.h`
+
+Yanıltıcı ölü bloklar kaldırıldı (hiçbiri derlenmiyordu):
+
+- `#if HAS_TMC220x` bloğu. Standalone sürücülerde bu makro **false**; blok hiç
+  derlenmiyordu ama okuyana "UART bağlı" izlenimi veriyordu. Üstelik
+  `MSerial2` (USART2) gösteriyordu, oysa USART3 DWIN ekranına ayrılmış.
+  Yerine standalone'un ne anlama geldiğini açıklayan not kondu.
+- Alternatif ekran pin haritaları (RET6/VET6 12864 LCD, DWIN encoder).
+  Bazıları **aktif pinlerle çelişiyordu** — örn. `BTN_EN2 PA4` ile
+  `CHECKFILEMENT_PIN PA4`, `LCD_PINS_ENABLE PA7` ile `Z_MIN_PIN PA7`.
+  Yanlışlıkla açılma riski ortadan kaldırıldı.
+- Kullanılmayan SPI/flash EEPROM stub'ları. Bu kartta I2C BL24C16 var.
+
+### Kararlar
+
+- **`Version.h` değiştirilmedi.** `STRING_DISTRIBUTION_DATE` binary'ye gömülü;
+  bumplamak bit-bit aynılığı bozar ve işlevsel bir sebep olmadan yeniden flash
+  gerektirirdi.
+- **Binary'deki ölü özellikler bırakıldı** (`ARC_SUPPORT` 1.359 B,
+  `BEZIER_CURVE_SUPPORT` 197 B, `FWRETRACT` 346 B, `backtrace` 3.682 B,
+  `SPIClass` ctor 500 B — toplam ~6,9 KB / %3,7). Flash %35 dolu; bu kazanç
+  için config kurcalamak regresyon riskine değmez. `backtrace` ayrıca hardfault
+  ayıklamada işe yarar.
+
+### Doğrulama
+
+Her fazdan sonra derleme yapıldı ve SHA256 karşılaştırıldı:
+
+| Faz | Sonuç |
+|---|---|
+| 99 `.cpp` silindi | binary bit-bit aynı |
+| 14 yetim başlık silindi | **build kırıldı** → `spi_pins.h` ve `endstop_interrupts.h` geri alındı (makroyla include ediliyorlar, `HAL_PATH(...)`) |
+| 12 başlık ile tekrar | binary bit-bit aynı |
+| `pins_CREALITY.h` temizliği | binary bit-bit aynı |
+
+### Docs
+
+- `MANUAL.md §10` — probe ekleme rehberine "kaynak dosyaları artık ağaçta yok"
+  uyarısı ve `git checkout 1d2ba27 -- …` geri alma komutu eklendi.
+
+---
+
 ## [Sermoon-D1-2.1] — 2026-07-21
 
 Donanım gerçeğiyle hizalama + üç kritik hata düzeltmesi. Kapsam: **yalnızca

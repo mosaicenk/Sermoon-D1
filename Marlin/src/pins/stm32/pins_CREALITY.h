@@ -48,20 +48,9 @@
 #define IIC_EEPROM_SDA       PA11
 #define IIC_EEPROM_SCL       PA12
 
-/* SPI */
-//#define SPI_EEPROM  // EEPROM on SPI-0
-//#define SPI_CHAN_EEPROM1        ?
-//#define SPI_EEPROM1_CS          ?
-// 2K EEPROM
-//#define SPI_EEPROM2_CS          ?
-// 32Mb FLASH
-//#define SPI_FLASH_CS            ?
-
-/* FLASH */
-// Enable EEPROM Emulation for this board
-// This setting should probably be in configuration.h
-// but it is literally the only board which uses it.
-//#define FLASH_EEPROM_EMULATION
+// NOT: Bu kartta EEPROM I2C uzerindedir (yukaridaki MYI2C_EEPROM, BL24C16).
+// SPI EEPROM ve flash-emulasyon secenekleri V4.3.1'de yoktur; kullanilmayan
+// alternatif tanimlar kafa karistirmamasi icin kaldirildi.
 
 //
 // Limit Switches
@@ -105,39 +94,17 @@
 #define E0_STEP_PIN        PB4
 #define E0_DIR_PIN         PB3
 
-#if HAS_TMC220x
-
-  //
-  // TMC2208 mode
-  //
-  // #define TMC2208_STANDALONE
-
-  //
-  // TMC2208 Software serial
-  //
-  // #define HAVE_SW_SERIAL
-
-  #define X_HARDWARE_SERIAL  MSerial2
-  #define Y_HARDWARE_SERIAL  MSerial2
-  #define Z_HARDWARE_SERIAL  MSerial2
-  #define E0_HARDWARE_SERIAL MSerial2
-
-  // #define X_SERIAL_TX_PIN  PA11
-  // #define X_SERIAL_RX_PIN  PA12
-
-  // #define Y_SERIAL_TX_PIN  PB6
-  // #define Y_SERIAL_RX_PIN  PB7
-
-  // #define Z_SERIAL_TX_PIN  PB10
-  // #define Z_SERIAL_RX_PIN  PB11
-
-  // #define E0_SERIAL_TX_PIN PA2
-  // #define E0_SERIAL_RX_PIN PA3
-
-  // Reduce baud rate to improve software serial reliability
-  // #define TMC_BAUD_RATE 19200
-
-#endif
+//
+// Surucu tipi: TMC2208 STANDALONE (Configuration.h *_DRIVER_TYPE).
+// Standalone = sadece STEP/DIR/EN; firmware surucuyle KONUSMAZ. UART yok,
+// bu yuzden M906 (akim), M569 (chop modu) ve sensorless homing kullanilamaz;
+// akim ayari surucu uzerindeki potansiyometreyle yapilir.
+//
+// Buradaki eski *_HARDWARE_SERIAL / *_SERIAL_*_PIN tanimlari HAS_TMC220x
+// bloğunun icindeydi; standalone'da o makro false oldugu icin hicbir zaman
+// derlenmiyorlardi. Ustelik MSerial2 (USART2) gosteriyorlardi, oysa USART3
+// DWIN ekranina ayrilmis durumda. Yanlis izlenim vermemesi icin kaldirildi.
+//
 
 //
 // Release PB4 (Y_ENABLE_PIN) from JTAG NRST role
@@ -159,42 +126,15 @@
 #define FAN_PIN            PA0   // FAN
 #define FAN_SOFT_PWM
 
-/* RET6 12864 LCD */
-// #define LCD_PINS_RS        PB12
-// #define LCD_PINS_ENABLE    PB15
-// #define LCD_PINS_D4        PB13
-
-// #define BTN_ENC            PB2
-// #define BTN_EN1            PB10
-// #define BTN_EN2            PB14
-
-// #define BEEPER_PIN         PC6
-
-/* VET6 12864 LCD */
-// #define LCD_PINS_RS        PA4
-// #define LCD_PINS_ENABLE    PA7
-// #define LCD_PINS_D4        PA5
-
-// #define BTN_ENC            PC5
-// #define BTN_EN1            PB10
-// #define BTN_EN2            PA6
-
-
-/* RET6 DWIN ENCODER LCD */
-// #define BTN_ENC            PB14
-// #define BTN_EN1            PB15
-// #define BTN_EN2            PB12
-
-// #define LCD_LED_PIN        PB2
-// #define BEEPER_PIN         PB13
-
-
-/* VET6 DWIN ENCODER LCD */
-// #define BTN_ENC            PA6
-// #define BTN_EN1            PA7
-// #define BTN_EN2            PA4
-
-// #define BEEPER_PIN         PA5
+//
+// Ekran: DWIN T5L, USART3 uzerinden RTS protokolu (SERIAL_PORT_2 = 3).
+// Ekranin kendi pinleri burada TANIMLANMAZ — surucu src/lcd/dwin/ altindadir.
+//
+// Bu noktada 12864 karakter-LCD ve DWIN-encoder varyantlarinin pin haritalari
+// yorum olarak duruyordu. Hicbiri Sermoon D1'de kullanilmiyor ve bazilari
+// aktif pinlerle celisiyordu (orn. PA4=CHECKFILEMENT, PA5/PA6/PA7=endstop).
+// Yanlislikla acilma riskini ortadan kaldirmak icin kaldirildi.
+//
 
 /* SD card detect */
 #define SD_DETECT_PIN      PC7

@@ -405,6 +405,30 @@ LIN_ADVANCE aktif, Bowden için K kalibrasyonu hatırlatması.
 > **Probe eklemeden önce zorunlu adım:** PB0/PB1 pinleri Z lock modülüne
 > ayrılmıştır. Önce `Configuration_adv.h`'da `SERMOON_Z_LOCK` kapatılmalıdır.
 > Kapatmadan probe açarsanız derleme `SanityCheck.h` hatası ile durur.
+>
+> ### ⚠️ Kaynak dosyaları artık ağaçta yok
+>
+> Sermoon-D1 **2.2** ölü kod temizliğinde probe ve tabla-tesviye kaynak
+> dosyaları silindi (binary'ye zaten 0 byte katkıları vardı). Bu bölümü
+> uygulamadan önce onları geri getirmen gerekir:
+>
+> ```bash
+> # Temizlik öncesi taban commit'inden geri al
+> git checkout 1d2ba27 -- \
+>   Marlin/src/module/probe.cpp \
+>   Marlin/src/feature/bedlevel \
+>   Marlin/src/gcode/probe \
+>   Marlin/src/gcode/bedlevel \
+>   Marlin/src/gcode/calibrate/M48.cpp \
+>   Marlin/src/gcode/calibrate/G425.cpp \
+>   Marlin/src/libs/vector_3.cpp \
+>   Marlin/src/libs/least_squares_fit.cpp \
+>   Marlin/src/libs/least_squares_fit.h
+> ```
+>
+> Başlık dosyaları (`probe.h`, `bedlevel.h` vb.) **silinmedi** — hâlâ ağaçta.
+> Sadece `.cpp` gövdeleri ve yetim kalan iki başlık geri alınmalı.
+> Tam liste: `git show --stat 1d2ba27..HEAD`.
 
 ### 10.1 Sensör Bilgileri (probe eklenirse — referans)
 

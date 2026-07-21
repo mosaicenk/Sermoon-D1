@@ -3,7 +3,7 @@
 Creality **Sermoon D1** kapalı kabin 3D yazıcısı için Marlin 2.0.x bugfix
 tabanlı, modülerleştirilmiş ve genişletilmiş firmware.
 
-**Versiyon**: `SD1-2.1` (base: stock Creality V1.1.10)
+**Versiyon**: `SD1-2.2` (base: stock Creality V1.1.10)
 **Build hedefi**: Creality V4.3.1 anakart (STM32F103RET6) — **tek hedef, başka kart desteklenmez**
 **Son güncelleme**: 2026-07-21
 
@@ -208,6 +208,25 @@ Bazı modern özellikler donanım/HAL nedeniyle aktive edilemez:
 > **2026-07-21 (SD1-2.1)**: Z-probe kodu devre dışı bırakıldığı için Flash
 > −2.832 byte, RAM −16 byte. Kalan 3 DWIN uyarısı da giderildi → proje
 > kodunda sıfır uyarı.
+>
+> **2026-07-21 (SD1-2.2)**: 111 ölü dosya silindi (99 `.cpp` + 12 `.h`).
+> Flash/RAM **değişmedi** — silinen dosyaların binary'ye katkısı zaten 0 byte
+> ölçülmüştü. Üretilen binary 2.1 ile bit-bit aynıdır
+> (SHA256 `E0CDBDE9…547E`) → **yeniden flash gerekmez**.
+
+### Binary'de kalan ölü özellikler
+
+Bilinçli olarak bırakıldı — toplam ~6,9 KB (%3,7). Flash %35 dolu, temizlemenin
+kazancı regresyon riskine değmiyor:
+
+| Özellik | Boyut | Neden bırakıldı |
+|---|---|---|
+| `backtrace` | 3.682 B | Hardfault'ta seri porta stack trace basar — ayıklamada değerli |
+| `ARC_SUPPORT` (G2/G3) | 1.359 B | Bazı slicer'lar arc fitting ile üretir |
+| `PRINTCOUNTER` | 789 B | Gerçek özellik, ekranda gösteriliyor |
+| `SPIClass` ctor | 500 B | SD kart SDIO kullanıyor; linker gövdeyi zaten atmış |
+| `FWRETRACT` (G10/G11) | 346 B | Küçük, zararsız |
+| `BEZIER_CURVE_SUPPORT` (G5) | 197 B | Tamamen ölü ama 197 byte |
 
 ## Dokümantasyon
 
@@ -260,10 +279,9 @@ Test edilmemiş alanlar:
   boot'ta MINTEMP hatası verir. Isıtılmayan atölyede kullanılacaksa değer
   düşürülebilir (0 yapılmamalı).
 
-> **Versiyon kontrolü yok.** Bu dizin bir git deposu değil (`.git` yok) —
-> `.gitignore` mevcut ama işlevsiz. Firmware config'i elle kalibre edilmiş
-> değerler içerdiği için `git init` + ilk commit şiddetle önerilir; aksi halde
-> hatalı bir düzenlemeden geri dönüş yolu yok.
+> **Versiyon kontrolü**: SD1-2.2 ile git deposu kuruldu. `1d2ba27` commit'i
+> temizlik öncesi tam durumu (433 dosya) dondurur — silinen her dosya oradan
+> geri alınabilir: `git checkout 1d2ba27 -- <yol>`.
 
 Sorular veya iyileştirme önerileri için CHANGELOG'a bak veya kodu doğrudan
 incele — mimari modüler ve dokümante edilmiştir.
