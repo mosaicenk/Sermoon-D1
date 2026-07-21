@@ -1,0 +1,47 @@
+/**
+ * Marlin 3D Printer Firmware — Sermoon D1 fork
+ *
+ * Sermoon Z Lock Module — implementation
+ *
+ * Bkz. sermoon_zlock.h
+ */
+
+#include "../inc/MarlinConfig.h"
+
+#if ENABLED(SERMOON_Z_LOCK)
+
+#include "sermoon_zlock.h"
+
+SermoonZLock zlock;
+bool SermoonZLock::engaged = false;
+
+void SermoonZLock::init() {
+  // Pinleri output moda al
+  SET_OUTPUT(Z_KEEP_PIN_PB0);
+  SET_OUTPUT(Z_KEEP_PIN_PB1);
+  // Boot'ta engage (mevcut Sermoon firmware davranışı ile uyumlu)
+  engage();
+}
+
+void SermoonZLock::engage() {
+  WRITE(Z_KEEP_PIN_PB0, HIGH);
+  WRITE(Z_KEEP_PIN_PB1, HIGH);
+  engaged = true;
+}
+
+void SermoonZLock::release() {
+  WRITE(Z_KEEP_PIN_PB0, LOW);
+  WRITE(Z_KEEP_PIN_PB1, LOW);
+  engaged = false;
+}
+
+#if ENABLED(SERMOON_Z_LOCK_AUTO)
+
+  // Z hareket sırasında lock'ı disengage et, hareket bitince engage
+  // Auto mod default OFF — yalnız kullanıcı tarafından manuel test için.
+  void SermoonZLock::on_motion_start() { release(); }
+  void SermoonZLock::on_motion_end()   { engage();  }
+
+#endif
+
+#endif // SERMOON_Z_LOCK
