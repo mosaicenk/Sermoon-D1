@@ -1,82 +1,68 @@
-# Sermoon D1 — LIN_ADVANCE K Kalibrasyon Rehberi
+# Sermoon D1 — LIN_ADVANCE K Calibration Guide
 
-LIN_ADVANCE (Linear Advance), extruder hızı değişimlerinde **filament basıncını
-önceden hesaplayıp** köşe blob'ları, ipliklenme (stringing) ve under-extrusion
-sorunlarını azaltır. Sermoon D1 **direct drive** ekstrudere sahiptir
-(dişlisiz MK8 tipi, drive gear hotend'in hemen üstünde) — K değerleri bu
-yüzden küçüktür ama sıfır değildir.
+LIN_ADVANCE (Linear Advance) **pre-calculates filament pressure** during extruder speed changes, reducing corner blobs, stringing, and under-extrusion issues. The Sermoon D1 features a **direct drive** extruder (gearless MK8 type, drive gear directly above the hotend) — therefore, K values are small but not zero.
 
-## Neden Sermoon İçin Önemli?
+## Why is it Important for Sermoon?
 
-Direct drive'da drive gear ile nozül arası yol kısadır, yine de elastik
-davranan bir basınç hattı vardır: kısa PTFE boğaz + melt bölgesindeki
-sıvı plastik.
+In a direct drive, the path between the drive gear and the nozzle is short, yet there is still an elastic pressure line: the short PTFE throat + the molten plastic in the melt zone.
 
 ```
-Drive gear ──[boğaz + melt bölgesi]── Nozzle
+Drive gear ──[throat + melt zone]── Nozzle
               ↑
-        basınç birikmesi burada gecikir
+         pressure build-up is delayed here
 ```
 
-Sonuç (Bowden'a göre küçük ölçekte, ama görünür):
-- Yazıcı durduğunda → hat hâlâ basınçlı → **fazla extrude** (köşe blob'u)
-- Yazıcı hızlandığında → basınç oturana kadar → **az extrude** (köşe boşluğu)
-- Retraction sonrası → priming gecikmesi → **layer start defect**
+The result (on a smaller scale compared to Bowden, but still visible):
+- When the printer stops → line is still pressurized → **over-extrusion** (corner blob)
+- When the printer accelerates → until pressure settles → **under-extrusion** (corner gap)
+- After retraction → priming delay → **layer start defect**
 
-LIN_ADVANCE bunu modeller: hız değişimi anlık değil, basınç dinamiği üzerinden
-hesaplar. K katsayısı bu basınç-zaman sabitidir. Yol kısa olduğu için
-Sermoon'da K tipik olarak **0.02-0.15** bandındadır (Bowden'ın 0.4-0.9'una
-karşılık).
+LIN_ADVANCE models this: speed changes are not instantaneous, it calculates based on pressure dynamics. The K coefficient is this pressure-time constant. Because the path is short, the K value for Sermoon typically falls in the **0.02-0.15** range (compared to 0.4-0.9 for Bowden).
 
-## Mevcut Durum
+## Current Status
 
-| Ayar | Değer | Konum |
+| Setting | Value | Location |
 |---|---|---|
-| `LIN_ADVANCE` | ✅ Aktif | `Configuration_adv.h:1466` |
+| `LIN_ADVANCE` | ✅ Active | `Configuration_adv.h:1466` |
 | `LIN_ADVANCE_K` (default) | 0.06 | `Configuration_adv.h:1483` |
-| `M900` (runtime K set) | ✅ Çalışıyor | `gcode/feature/advance/M900.cpp` |
-| `M500` (EEPROM kayıt) | ✅ Aktif | — |
+| `M900` (runtime K set) | ✅ Working | `gcode/feature/advance/M900.cpp` |
+| `M500` (EEPROM save) | ✅ Active | — |
 
-⚠️ **Default K=0.06 direct drive için makul bir başlangıçtır ama kalibre
-edilmeden güvenilmez** — E0 sürücüsü SD1-2.4 ile HR4988SQ'ya değişti ve
-**K sürücüye özgüdür**; eski kalibrasyon değeri varsa o da geçersizdir.
+⚠️ **Default K=0.06 is a reasonable starting point for direct drive but unreliable without calibration** — the E0 driver changed to HR4988SQ in SD1-2.4, and **K is driver-specific**; if you have an old calibration value, it is also invalid.
 
-## Sermoon Direct Drive K Aralıkları
+## Sermoon Direct Drive K Ranges
 
-| Filament | Tipik K aralığı | Başlangıç noktası |
+| Filament | Typical K range | Starting point |
 |---|---|---|
 | PLA | 0.02 - 0.10 | Test 0.02, 0.06, 0.10 |
 | PETG | 0.04 - 0.15 | Test 0.05, 0.10, 0.15 |
 | ABS | 0.02 - 0.10 | Test 0.02, 0.06, 0.10 |
 | TPU | 0.10 - 0.40 | Test 0.10, 0.25, 0.40 |
-| Esnek/Flex | 0.20 - 0.60 | Test 0.20, 0.40, 0.60 |
+| Flexible/Flex | 0.20 - 0.60 | Test 0.20, 0.40, 0.60 |
 
-> Bu aralıklar başlangıç penceresidir, garanti değil — doğru K'yı desen
-> belirler. Aynı yazıcıda farklı filament markası farklı K verebilir
-> (filament esnekliği ve sıcaklık etkili). Her ana filament için ayrı
-> kalibrasyon önerilir.
+> These ranges are a starting window, not a guarantee — the correct K is determined by the pattern. Different filament brands on the same printer may yield a different K (filament flexibility and temperature play a role). Separate calibration is recommended for each main filament.
 
-## Kalibrasyon Yöntemleri
+## Calibration Methods
 
-### Yöntem A — Marlin Online K-Factor Tool (ÖNERİLEN)
+### Method A — Marlin Online K-Factor Tool (RECOMMENDED)
 
-Marlin'in resmi aracı en iyi test pattern'i otomatik üretir.
+Marlin's official tool automatically generates the best test pattern.
 
-**1.** Aşağıdaki link'i aç:
+**1.** Open the following link:
 ```
 https://marlinfw.org/tools/lin_advance/k-factor.html
 ```
 
-**2.** Sermoon D1 parametrelerini gir:
+**2.** Enter the Sermoon D1 parameters:
 
-| Alan | Değer |
+| Field | Value |
 |---|---|
-| Filament Type | PLA (veya kullandığın) |
+| Filament Type | PLA (or what you are using) |
 | Filament Diameter | 1.75 |
-| Direct Drive | **Evet** (Sermoon D1 direct drive) |
+| Direct Drive | **Yes** (Sermoon D1 is direct drive) |
 | Bed Size X | 290 |
 | Bed Size Y | 270 |
-| Origin Bed Center | Hayır |
+| Origin Bed Center | No |
 | Nozzle Temperature | 210 (PLA) / 240 (ABS) / 230 (PETG) |
 | Bed Temperature | 60 (PLA) / 100 (ABS) / 80 (PETG) |
 | Nozzle Diameter | 0.4 |
@@ -89,86 +75,84 @@ https://marlinfw.org/tools/lin_advance/k-factor.html
 | Number of Test Lines | 16 |
 | Use TX in stock GCode | Yes (Marlin) |
 
-**3.** "Generate G-code" butonuna bas, üretilen `.gcode` dosyasını indir.
+**3.** Click the "Generate G-code" button and download the generated `.gcode` file.
 
-**4.** SD karta kopyala, yazıcıdan çalıştır.
+**4.** Copy to the SD card and run it from the printer.
 
-**5.** Print biten patterndeki numaralı satırlara bak — hangi K değeri
-en uniform geçişi veriyorsa o senin K'in.
+**5.** Look at the numbered lines in the finished print pattern — whichever K value yields the most uniform transition is your K.
 
-### Yöntem B — Manuel Tower Test (zaman alır)
+### Method B — Manual Tower Test (time-consuming)
 
-`la_tower_test.gcode` dosyasını kullan:
-1. Dosyayı aç, üstte `M900 K0.06` satırını bul
-2. Bir K değeri (örn. 0.02) ile bir kez çalıştır → sonucu kaydet
-3. K=0.06 ile tekrar çalıştır
-4. K=0.10 ile tekrar
-5. En uniform desenin K değerini seç
+Use the `la_tower_test.gcode` file:
+1. Open the file, find the `M900 K0.06` line at the top
+2. Run once with a K value (e.g. 0.02) → record the result
+3. Run again with K=0.06
+4. Run again with K=0.10
+5. Choose the K value that gives the most uniform pattern
 
-Hızlı ama 5-6 print gerektirir. Online araç bunu tek printte yapar.
+It is fast but requires 5-6 prints. The online tool does this in a single print.
 
-## Sonuç Analizi (Görsel Rehber)
+## Result Analysis (Visual Guide)
 
-Test pattern bittikten sonra her K satırına yandan bak:
+After the test pattern is finished, look at each K line from the side:
 
-### ✅ Optimal K (örn. 0.04 - 0.10)
-Tüm hız geçişlerinde **uniform duvar** — kalınlık sabit, yüzey pürüzsüz.
+### ✅ Optimal K (e.g. 0.04 - 0.10)
+**Uniform wall** across all speed transitions — constant thickness, smooth surface.
 
 ```
 ═══════════════════════════════════════
 Slow │  Fast  │ Slow │  Fast  │ Slow
      ↑        ↑      ↑        ↑
-   Geçişler net, blob/delik yok
+  Transitions clear, no blob/gap
 ```
 
-### ❌ K çok DÜŞÜK (örn. 0.00 - 0.02)
-Yavaştan hıza geçişte **incelme**, hızdan yavaşa geçişte **şişme/blob**.
+### ❌ K too LOW (e.g. 0.00 - 0.02)
+**Thinning** on slow-to-fast transition, **swelling/blob** on fast-to-slow transition.
 
 ```
-══════╗   ╔══════╗   ╔══════╗  ← köşe BLOB
-      ╚═══╝      ╚═══╝          ← hızlı bölgede İNCELME
+══════╗   ╔══════╗   ╔══════╗  ← corner BLOB
+      ╚═══╝      ╚═══╝         ← THINNING in fast region
 ```
 
-### ❌ K çok YÜKSEK (örn. 0.25+)
-Yavaştan hıza geçişte **delik**, hızdan yavaşa geçişte **incelme**.
+### ❌ K too HIGH (e.g. 0.25+)
+**Gap** on slow-to-fast transition, **thinning** on fast-to-slow transition.
 
 ```
-══╗   ╔════════╗   ╔══════════ ← geçişte DELİK
+══╗   ╔════════╗   ╔══════════ ← GAP at transition
    ╚══╝         ╚══╝
 ```
 
-## K'yı Set Etme ve Kaydetme
+## Setting and Saving K
 
-### Geçici (test için)
+### Temporary (for testing)
 ```gcode
 M900 K0.06    ; LIN_ADVANCE K = 0.06
 ```
 
-### Kalıcı (EEPROM)
+### Permanent (EEPROM)
 ```gcode
 M900 K0.06    ; Set
-M500          ; EEPROM'a yaz
-M501          ; Doğrulama: yükle
-M503          ; Tüm ayarları göster — M900 K0.06 satırı görünmeli
+M500          ; Write to EEPROM
+M501          ; Verification: load
+M503          ; Show all settings — M900 K0.06 line should appear
 ```
 
-### Firmware kalıcı (factory reset bile etkilemez)
+### Firmware permanent (unaffected even by factory reset)
 
-Configuration_adv.h'da:
+In Configuration_adv.h:
 ```c
-#define LIN_ADVANCE_K 0.06   // Sermoon D1 PLA — kalibre edildi YYYY-MM-DD
+#define LIN_ADVANCE_K 0.06   // Sermoon D1 PLA — calibrated YYYY-MM-DD
 ```
-Sonra `pio run -e creality` ile yeniden derle ve flash et.
+Then recompile and flash with `pio run -e creality`.
 
-## Slicer Entegrasyonu
+## Slicer Integration
 
-Tek K değeri tüm filamentler için yeterli olmaz. **Slicer'ın start gcode**'una
-materyal-spesifik M900 koy:
+A single K value will not suffice for all filaments. Place material-specific M900 in the **slicer's start gcode**:
 
 ### Cura
-"Filament Settings" → "Start G-code" üstüne ekle:
+Add above "Filament Settings" → "Start G-code":
 ```gcode
-M900 K0.06  ; PLA için optimize
+M900 K0.06  ; Optimized for PLA
 ```
 
 ### PrusaSlicer
@@ -178,17 +162,17 @@ M900 K0.06
 ```
 
 ### OrcaSlicer / Bambu Studio
-Filament profile'da "Filament start G-code":
+In filament profile under "Filament start G-code":
 ```gcode
 M900 K0.06
 ```
 
-## Materyal-Spesifik Önerilen Profil
+## Recommended Material-Specific Profile
 
-Kalibrasyonun bittikten sonra her materyal için belge:
+After your calibration is complete, document it for each material:
 
 ```
-Sermoon D1 — LIN_ADVANCE K profilim:
+Sermoon D1 — My LIN_ADVANCE K profile:
 ─────────────────────────────────────
 Filament              K
 ─────────────────────────────────────
@@ -199,90 +183,71 @@ TPU 95A               0.25
 Esun PLA+             0.07
 Polymaker PLA         0.06
 ─────────────────────────────────────
-Tarih: YYYY-MM-DD
+Date: YYYY-MM-DD
 ```
 
-Bu listeyi yazıcının yanında tut, slicer profilelarına yansıt.
+Keep this list near the printer and mirror it to your slicer profiles.
 
-## Doğrulama Print
+## Verification Print
 
-Kalibrasyon sonrası gerçek bir model print et — örneğin:
-- 20×20×20 kalibrasyon küpü (Cura'nın kendi modeli)
+After calibration, print a real model — for example:
+- 20×20×20 calibration cube (Cura's own model)
 - "All In One Test" model (Thingiverse)
-- Yüzeyde köşelerde **net edge**, layer kalınlıkları uniform → tuning başarılı
+- If the surface has **clean edges** in the corners and uniform layer thickness → tuning is successful
 
-## Bilinen Etkileşim: S_CURVE_ACCELERATION
+## Known Interaction: S_CURVE_ACCELERATION
 
-Bu firmware'de `S_CURVE_ACCELERATION` açık (`Configuration.h:859`) ve LA ile
-yapısal bir gerilimi var: LA'nın blok başına ekstruder telafi hızı
-(`advance_speed`) **sabit (trapez) ivme** varsayımıyla hesaplanır; S-curve ise
-anlık ivmeyi faz içinde değiştirir (uçlarda ~0, zirvede ortalamanın ~1.9 katı).
-Kodda görünür hali: `stepper.cpp:1582/1627` — `LA_isr_rate` blok boyunca tek
-değerdir, Bézier hız eğrisini takip etmez. Upstream Marlin bir dönem bu
-birlikteliği SanityCheck ile engelleyip `EXPERIMENTAL_SCURVE` bayrağı arkasına
-almıştı; bu taban o korumadan eskidir.
+In this firmware, `S_CURVE_ACCELERATION` is active (`Configuration.h:859`) and has a structural tension with LA: LA's extruder compensation speed per block (`advance_speed`) is calculated assuming **constant (trapezoidal) acceleration**; S-curve, however, alters the instantaneous acceleration during the phase (~0 at the extremes, ~1.9 times the average at the peak).
+As it appears in the code: `stepper.cpp:1582/1627` — `LA_isr_rate` is a single value throughout the block, it does not follow the Bézier speed curve. Upstream Marlin once blocked this pairing with a SanityCheck and placed it behind the `EXPERIMENTAL_SCURVE` flag; this codebase is older than that protection.
 
-Pratik sonuç:
-- Direct drive K'ları küçük olduğu için (≤0.15) LA'nın eklediği telafi
-  adımları azdır — etkileşimin pratik etkisi Bowden kurulumlarına göre çok
-  daha düşüktür; çoğu baskıda fark edilmez.
-- **Belirti**: kalibrasyon deseninde hiçbir K satırı tam uniform olmuyor ve
-  hız-geçiş köşelerindeki blob her K değerinde sürüyorsa →
-  `S_CURVE_ACCELERATION`'ı kapat (`Configuration.h:859`), yeniden derle ve
-  deseni tekrar bas. Köşe-hız kontrolünü Junction Deviation zaten sağlıyor;
-  S-curve'süz kalmanın kaybı küçüktür. Kapatırsan K'yı da yeniden kalibre et.
+Practical result:
+- Because direct drive K's are small (≤0.15), the compensation steps added by LA are few — the practical effect of the interaction is much lower compared to Bowden setups; it goes unnoticed in most prints.
+- **Symptom**: If no K line is perfectly uniform in the calibration pattern and the blob at speed-transition corners persists at every K value → disable `S_CURVE_ACCELERATION` (`Configuration.h:859`), recompile, and print the pattern again. Corner-speed control is already provided by Junction Deviation; the loss of being without S-curve is minor. If you disable it, recalibrate K as well.
 
 ## Troubleshooting
 
 **"Echo:Unknown command: M900"**
-→ LIN_ADVANCE flag aktif değil. `Configuration_adv.h:1466`'yı kontrol et,
-   `pio run -e creality` ile yeniden derle.
+→ LIN_ADVANCE flag is not active. Check `Configuration_adv.h:1466`, recompile with `pio run -e creality`.
 
-**Test bittikten sonra hiç fark görmüyorum**
-→ Direct drive'da K farkları incedir; 0.1'lik adım optimumu atlar.
-   0.0 - 0.2 arası 0.01-0.02 adımla tekrar dene. Satırlar arasında hâlâ fark
-   yoksa desendeki hız kontrastını artır (Slow 20 / Fast 100 mm/s) — hız
-   farkı büyüdükçe LA etkisi belirginleşir.
+**I see no difference at all after the test finishes**
+→ K differences in direct drive are subtle; a step of 0.1 skips the optimum.
+   Try again between 0.0 - 0.2 with 0.01-0.02 steps. If there's still no difference between lines, increase the speed contrast in the pattern (Slow 20 / Fast 100 mm/s) — the LA effect becomes more pronounced as the speed difference grows.
 
-**Print sırasında M73 progress %100'e gitti ama print bitmedi**
-→ LA test pattern uzun, slicer estimate yanlış olabilir. Sorunsuz devam eder.
+**During print, M73 progress went to 100% but the print didn't finish**
+→ The LA test pattern is long, the slicer estimate might be wrong. It will continue without issues.
 
-**Yüksek K'da extruder skip yapıyor (klick sesi)**
-→ K çok yüksek, extruder torku yetmiyor. K azalt veya
-   `DEFAULT_EJERK` değerini Configuration.h'da artır (default 5).
+**Extruder skips at high K (clicking sound)**
+→ K is too high, extruder torque is insufficient. Decrease K or increase the `DEFAULT_EJERK` value in Configuration.h (default 5).
 
-**M900 K çalışmıyor (M900 sonrası yine eski davranış)**
-→ M500 yapmadan reset yapmışsın. Sırayı: M900 K... → M500 → reset.
+**M900 K is not working (old behavior returns after M900)**
+→ You performed a reset without doing M500. The sequence is: M900 K... → M500 → reset.
 
-## Hızlı Komut Referansı
+## Quick Command Reference
 
 ```gcode
-M900             ; Mevcut K değerini sorgula
-M900 K0.6        ; K = 0.6 set
-M500             ; EEPROM'a yaz
-M501             ; EEPROM'dan oku
-M502             ; Factory defaults (K=0.06'ya döner)
-M503             ; Tüm ayarları göster
+M900             ; Query the current K value
+M900 K0.6        ; Set K = 0.6
+M500             ; Write to EEPROM
+M501             ; Read from EEPROM
+M502             ; Factory defaults (returns to K=0.06)
+M503             ; Show all settings
 ```
 
-## İleri Düzey: EXTRA_LIN_ADVANCE_K
+## Advanced: EXTRA_LIN_ADVANCE_K
 
-Configuration_adv.h'da `EXTRA_LIN_ADVANCE_K` flag'ini açarsan **iki K değeri
-slot'u** elde edersin (M900 T0 K... ve M900 T1 K...). Materyal değişiminde
-M900 ile slot değiştirip hızlı geçiş yapabilirsin. Default OFF — aktive
-etmek istersen söyle, ekleyebilirim.
+If you enable the `EXTRA_LIN_ADVANCE_K` flag in Configuration_adv.h, you gain **two K value slots** (M900 T0 K... and M900 T1 K...). During a material change, you can switch slots with M900 for a quick transition. Default is OFF — if you want to activate it, say so, I can add it.
 
 ---
 
-## Kalibrasyon Tarif Özeti — TL;DR
+## Calibration Recipe Summary — TL;DR
 
 ```
-1. Online araca git: marlinfw.org/tools/lin_advance/k-factor.html
-2. Sermoon parametreleri gir (yukarıdaki tablo)
+1. Go to the online tool: marlinfw.org/tools/lin_advance/k-factor.html
+2. Enter Sermoon parameters (table above)
 3. K_start=0.0, K_end=0.3, K_step=0.02
-4. Generate → SD'ye kopyala → çalıştır
-5. Yazılı pattern'i incele, en uniform olan satırın K'sini al
+4. Generate → copy to SD → run
+5. Examine the printed pattern, take the K from the most uniform line
 6. M900 K<value> + M500
-7. Slicer start gcode'una M900 K<value> ekle
-8. Bayram et 🎉
+7. Add M900 K<value> to your slicer start gcode
+8. Celebrate 🎉
 ```

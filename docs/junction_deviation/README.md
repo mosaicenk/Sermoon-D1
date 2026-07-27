@@ -1,159 +1,159 @@
-# Sermoon D1 — Junction Deviation Kalibrasyon Rehberi
+# Sermoon D1 — Junction Deviation Calibration Guide
 
-CLASSIC_JERK'ten **JUNCTION_DEVIATION**'a geçiş yapıldı. Bu doküman:
-1. JD nedir, neden geçtik
-2. Kalibrasyon prosedürü
-3. Sonuç beğenmezsen geri dönüş
+Switched from CLASSIC_JERK to **JUNCTION_DEVIATION**. This document covers:
+1. What JD is and why we switched
+2. Calibration procedure
+3. Reverting if you are not satisfied with the results
 
-## JD vs Klasik Jerk — Hızlı Karşılaştırma
+## JD vs Classic Jerk — Quick Comparison
 
-| Özellik | Classic Jerk | Junction Deviation |
+| Feature | Classic Jerk | Junction Deviation |
 |---|---|---|
-| Parametre sayısı | 4 (X/Y/Z/E ayrı) | 1 (`JUNCTION_DEVIATION_MM`) |
-| Hesap modeli | Step velocity delta | Fizik bazlı geometric cornering |
-| Köşe açısı dikkate alır | Hayır | Evet (sin θ formülü) |
-| Eksen-eksene tutarlılık | Manuel ayar | Otomatik |
-| İvme ile etkileşim | Bağımsız | Birleşik (`v² = δ·a/...`) |
-| Modern Marlin önerisi | ✗ Legacy | ✓ Önerilen (Marlin 2.0+) |
-| Kalibrasyon zorluğu | Orta-yüksek (4 değer) | Kolay (1 değer) |
+| Number of parameters | 4 (X/Y/Z/E separate) | 1 (`JUNCTION_DEVIATION_MM`) |
+| Calculation model | Step velocity delta | Physics-based geometric cornering |
+| Considers corner angle | No | Yes (sin θ formula) |
+| Axis-to-axis consistency | Manual adjustment | Automatic |
+| Interaction with acceleration | Independent | Combined (`v² = δ·a/...`) |
+| Modern Marlin recommendation | ✗ Legacy | ✓ Recommended (Marlin 2.0+) |
+| Calibration difficulty | Medium-high (4 values) | Easy (1 value) |
 
-JD'nin matematiği:
+JD mathematics:
 ```
 v_max_corner = √( JUNCTION_DEVIATION_MM × acceleration × (1/sin(θ/2) - 1)⁻¹ )
 ```
 
-θ = köşe açısı değişimi. Keskin köşe (θ büyük) = düşük v_max; düz devam (θ ≈ 0) = sınırsız hız.
+θ = change in corner angle. Sharp corner (large θ) = low v_max; straight continuation (θ ≈ 0) = unlimited speed.
 
-## Mevcut Ayar
+## Current Setting
 
 `Configuration.h:849`:
 ```c
 #if DISABLED(CLASSIC_JERK)
-  #define JUNCTION_DEVIATION_MM 0.015   // (mm) Default — Cartesian Sermoon D1 için varsayılan
+  #define JUNCTION_DEVIATION_MM 0.015   // (mm) Default — Default for Cartesian Sermoon D1
 #endif
 ```
 
-## Kalibrasyon Aralık Tablosu
+## Calibration Range Table
 
-Sermoon D1 (direct drive, kapalı kabin) için tipik değerler:
+Typical values for Sermoon D1 (direct drive, enclosed chamber):
 
-| δ (mm) | Karakter | Print Süresi | Kalite |
+| δ (mm) | Character | Print Time | Quality |
 |---|---|---|---|
-| 0.003 | Aşırı sıkı | +%15 yavaş | Mükemmel ama gereksiz |
-| 0.005 | Çok sıkı | +%10 | Yüksek detay |
-| 0.008 | Sıkı | +%5 | Hassas geometriler, keskin köşeler |
-| 0.013 | Üretim dengesi | Baseline | İyi denge |
-| **0.015** | **DEFAULT** | Hızlı | Yüksek hız ve performans dengesi |
-| 0.020 | Gevşek | -%5 hızlı | Hafif yumuşama |
-| 0.025 | Çok gevşek | -%10 | Belirgin yuvarlanma |
-| > 0.030 | Önerilmez | — | Köşe overshoot riski |
+| 0.003 | Overly tight | +15% slower | Excellent but unnecessary |
+| 0.005 | Very tight | +10% | High detail |
+| 0.008 | Tight | +5% | Precise geometries, sharp corners |
+| 0.013 | Production balance | Baseline | Good balance |
+| **0.015** | **DEFAULT** | Fast | High speed and performance balance |
+| 0.020 | Loose | -5% faster | Slight rounding |
+| 0.025 | Very loose | -10% | Noticeable rounding |
+| > 0.030 | Not recommended | — | Risk of corner overshoot |
 
-## Kalibrasyon Prosedürü
+## Calibration Procedure
 
 ### 1. Baseline Print
-Mevcut 0.013 ile referans bir print (kalibrasyon küpü, all-in-one test) yap. Köşelere **mikroskopla / büyüteçle** bak.
+Do a reference print (calibration cube, all-in-one test) with the current 0.013. Inspect the corners **with a microscope / magnifying glass**.
 
-### 2. Test Gcode'u Çalıştır
+### 2. Run Test Gcode
 
-`docs/junction_deviation/jd_test.gcode` SD'ye kopyala, çalıştır. Bu dosya hızlı yön değişimleri içeren bir test çalıştırır — köşe davranışını gözleyebilirsin.
+Copy `docs/junction_deviation/jd_test.gcode` to the SD card and run it. This file runs a test containing rapid direction changes — you can observe the corner behavior.
 
-### 3. Değer Ayarlama
+### 3. Adjusting the Value
 
-Runtime değişiklik:
+Runtime change:
 ```gcode
-M205 J0.008    ; JD = 0.008 set (sıkı test)
-M500           ; EEPROM'a kaydet
+M205 J0.008    ; Set JD = 0.008 (tight test)
+M500           ; Save to EEPROM
 ```
 
-Kalıcı kod değişikliği (`Configuration.h:756`):
+Permanent code change (`Configuration.h:756`):
 ```c
 #define JUNCTION_DEVIATION_MM 0.008
 ```
 
-### 4. Sweep Test (en iyi yöntem)
+### 4. Sweep Test (best method)
 
-Aynı modeli farklı JD değerleriyle 3 kez print et:
-- Print 1: `M205 J0.008` → bitince modele etiket koy "0.008"
+Print the same model 3 times with different JD values:
+- Print 1: `M205 J0.008` → label the model "0.008" when finished
 - Print 2: `M205 J0.013` → "0.013"
 - Print 3: `M205 J0.020` → "0.020"
 
-3 modeli yan yana koy, **köşelere** ve **kavislere** bak:
-- Hangisi en kararlı?
-- Hangisinde overshoot var?
-- Hangisi çok yavaş ama gerekli detay yok?
+Place the 3 models side by side, look at the **corners** and **curves**:
+- Which one is the most stable?
+- Which one has overshoot?
+- Which one is too slow but lacks necessary detail?
 
-Genelde 0.013 baseline iyi sonuç verir — değiştirmeye değecek bir sorun olmadıkça dokunma.
+Generally, the 0.013 baseline yields good results — unless there is a problem worth changing, do not touch it.
 
-## M205 Komutu (Runtime Değişiklik)
+## M205 Command (Runtime Change)
 
 ```gcode
-M205             ; Mevcut tüm hız ayarlarını göster
-M205 J0.013      ; JD set
-M205 X<v> Y<v>   ; Klasik jerk değerleri (CLASSIC_JERK varsa)
+M205             ; Show all current speed settings
+M205 J0.013      ; Set JD
+M205 X<v> Y<v>   ; Classic jerk values (if CLASSIC_JERK is present)
 M205 S<v>        ; Min print speed
 M205 T<v>        ; Min travel speed
-M500             ; EEPROM'a kaydet
-M501             ; EEPROM'dan oku
+M500             ; Save to EEPROM
+M501             ; Read from EEPROM
 ```
 
-## Beklenen Davranış Farkları
+## Expected Behavioral Differences
 
-### CLASSIC_JERK iken görüyordun:
-- Bazı köşelerde belirgin "tıkanma" sesi (yüksek jerk → ani hız değişimi)
-- Pürüzsüz büyük kavislerde sorunsuz
-- Küçük detaylarda overshoot
-- E-jerk (DEFAULT_EJERK 5) extruder için ayrı kontrol
+### When it was CLASSIC_JERK you used to see:
+- Distinct "clunking" sound in some corners (high jerk → sudden speed change)
+- Smooth on large curves
+- Overshoot on small details
+- Separate control for extruder via E-jerk (DEFAULT_EJERK 5)
 
-### JUNCTION_DEVIATION ile görmen muhtemel:
-- Tüm köşeler **birbiriyle tutarlı** davranır (otomatik açı bazlı)
-- Büyük açılar için daha hızlı (gereksiz yavaşlama yok)
-- Küçük açılar için daha akıllı yavaşlama
-- DEFAULT_EJERK hâlâ extruder için kullanılır (LIN_ADVANCE)
+### With JUNCTION_DEVIATION you are likely to see:
+- All corners behave **consistently with each other** (automatic angle-based)
+- Faster for large angles (no unnecessary slowdown)
+- Smarter slowdown for small angles
+- DEFAULT_EJERK is still used for the extruder (LIN_ADVANCE)
 
-## Geri Dönüş (Revert)
+## Reverting
 
-Eğer JD beğenmezsen, klasik jerk'e dön:
+If you do not like JD, revert to classic jerk:
 
 `Configuration.h:744`:
 ```c
-//#define CLASSIC_JERK    ← yorumu kaldır
+//#define CLASSIC_JERK    ← uncomment this
 
-#define CLASSIC_JERK      ← böyle yap
+#define CLASSIC_JERK      ← make it look like this
 #if ENABLED(CLASSIC_JERK)
   #define DEFAULT_XJERK 10.0
   ...
 ```
 
-Sonra:
+Then:
 ```powershell
 pio run -e creality
-# yeniden flash
+# re-flash
 ```
 
-Alternatif: runtime ile EEPROM üstünden manuel jerk değer set'i (CLASSIC_JERK build-time gerektirdiği için **işe yaramaz** — kod değişikliği şart).
+Alternative: Manual jerk value setting via runtime over EEPROM (**does not work** because CLASSIC_JERK requires build-time — code change is mandatory).
 
-## Bilinen Tradeoffs
+## Known Tradeoffs
 
-1. **DEFAULT_EJERK kalır**: LIN_ADVANCE bunu kullanır. JD değiştirmez.
-2. **Z jerk kavramı kaybolur**: JD Z için çalışır (Sermoon Z hareketleri zaten yavaş, sorun olmaz).
-3. **Print süresi farkı**: Sermoon ortalama hızlarda (50-80 mm/s) +/-%5 fark beklenir.
-4. **EEPROM uyumluluğu**: Mevcut M500 kayıtlarındaki jerk değerleri yeni firmware'de **görmezden gelinir**. Gerek yoksa M502 + M500 ile reset.
+1. **DEFAULT_EJERK remains**: LIN_ADVANCE uses this. JD does not change it.
+2. **Concept of Z jerk disappears**: JD works for Z (Sermoon Z movements are already slow, it won't be a problem).
+3. **Print time difference**: At average speeds for Sermoon (50-80 mm/s), a +/-5% difference is expected.
+4. **EEPROM compatibility**: Jerk values in existing M500 records are **ignored** in the new firmware. Reset with M502 + M500 if not needed.
 
-## Hızlı Komut Referansı
+## Quick Command Reference
 
 ```gcode
-M205 J0.013      ; JD set runtime
-M205             ; Mevcut JD/jerk değerlerini göster
-M500 / M501      ; Kaydet / yükle
-M502 + M500      ; Factory + EEPROM yaz
-M503             ; Tüm ayarlar — JD satırı M205'te görünür
+M205 J0.013      ; Set JD at runtime
+M205             ; Show current JD/jerk values
+M500 / M501      ; Save / load
+M502 + M500      ; Factory + Write to EEPROM
+M503             ; All settings — JD line appears in M205
 ```
 
-## Doğrulama
+## Verification
 
-Yeni firmware flash sonrası:
+After flashing the new firmware:
 ```gcode
-M115             ; Versiyon: SD1-1.0
-M503             ; Çıktıda "M205 J0.013" görünmeli
-                 ; (CLASSIC_JERK olsa "M205 X10 Y10 Z0.4 E5" görünürdü)
+M115             ; Version: SD1-1.0
+M503             ; "M205 J0.013" should appear in the output
+                 ; (If it were CLASSIC_JERK, "M205 X10 Y10 Z0.4 E5" would appear)
 ```

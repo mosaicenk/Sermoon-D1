@@ -1,52 +1,51 @@
-# Sermoon D1 Firmware — Dokümantasyon İndeksi
+# Sermoon D1 Firmware — Documentation Index
 
-Bu klasör Sermoon D1 firmware'i ile ilgili tüm uygulama notları,
-kalibrasyon rehberleri ve teknik referans dokümanlarını içerir.
+This folder contains all application notes, calibration guides, and technical reference documents related to the Sermoon D1 firmware.
 
-## İçerik
+## Contents
 
-### Kalibrasyon Rehberleri
+### Calibration Guides
 
-| Klasör | İçerik |
+| Folder | Content |
 |---|---|
-| **[`pid_tuning/`](pid_tuning/README.md)** | PID otomatik kalibrasyon (M303) — hotend ve yatak için doğru sıcaklık kontrolü |
-| **[`lin_advance/`](lin_advance/README.md)** | LIN_ADVANCE K kalibrasyonu (M900) — köşe kalitesi (direct drive, küçük K) |
-| **[`junction_deviation/`](junction_deviation/README.md)** | Junction Deviation kalibrasyonu (M205 J) — modern köşe-hız kontrolü |
+| **[`pid_tuning/`](pid_tuning/README.md)** | PID auto-tuning (M303) — accurate temperature control for hotend and bed |
+| **[`lin_advance/`](lin_advance/README.md)** | LIN_ADVANCE K calibration (M900) — corner quality (direct drive, low K) |
+| **[`junction_deviation/`](junction_deviation/README.md)** | Junction Deviation calibration (M205 J) — modern corner-speed control |
 
-Her klasörde:
-- `README.md` — kapsamlı prosedür, troubleshooting, beklenen değerler
-- `*.gcode` — SD'den çalıştırılabilir test dosyaları
+In each folder:
+- `README.md` — comprehensive procedure, troubleshooting, expected values
+- `*.gcode` — test files executable from SD
 
-### Referans
+### Reference
 
-| Dosya | İçerik |
+| File | Content |
 |---|---|
-| [`Bresenham.md`](Bresenham.md) | Marlin step üretiminde kullanılan Bresenham algoritmasının açıklaması (orijinal Marlin dokümanı) |
+| [`Bresenham.md`](Bresenham.md) | Explanation of the Bresenham algorithm used in Marlin step generation (original Marlin documentation) |
 
-### Proje Düzeyi
+### Project Level
 
-| Dosya | Konum | İçerik |
+| File | Location | Content |
 |---|---|---|
-| [`README.md`](../README.md) | Proje kökü | Hızlı başlangıç, build, donanım özet |
-| [`CHANGELOG.md`](../CHANGELOG.md) | Proje kökü | Bu fork üzerinde yapılan değişikliklerin tarihçesi |
+| [`README.md`](../README.md) | Project root | Quick start, build, hardware summary |
+| [`CHANGELOG.md`](../CHANGELOG.md) | Project root | History of changes made on this fork |
 
-## Hızlı Başlangıç İndeksi
+## Quick Start Index
 
-İlk kurulum:
-1. Donanımı kontrol et → [proje README](../README.md#donanım)
-2. Firmware'i derle → [proje README → Build](../README.md#build)
-3. Yazıcıya flash et → [pre-flash backup](pid_tuning/README.md#firmwarei-flash-et)
+Initial setup:
+1. Check hardware → [project README](../README.md#hardware)
+2. Build firmware → [project README → Build](../README.md#1-build-platformio-required)
+3. Flash to printer → [pre-flash backup](pid_tuning/README.md#flash-the-firmware)
 
-İlk kalibrasyon (önerilen sıra):
-1. **PID kalibrasyonu** → [pid_tuning/](pid_tuning/README.md)
+Initial calibration (recommended order):
+1. **PID calibration** → [pid_tuning/](pid_tuning/README.md)
 2. **LIN_ADVANCE K** → [lin_advance/](lin_advance/README.md)
-3. **Z offset (ilk katman)** → babystep ile, [MANUAL.md §15.3](../MANUAL.md#153-z-offset-ilk-katman-kalibrasyonu)
-4. **Doğrulama print** → kalibrasyon küpü, all-in-one test model
+3. **Z offset (first layer)** → via babystep, [MANUAL.md §15.3](../MANUAL.md#153-z-offset-first-layer-calibration)
+4. **Verification print** → calibration cube, all-in-one test model
 
-> Bu yazıcıda **Z-probe yok** (BLTouch de endüktif sensör de takılı değil).
-> Tabla tesviyesi manueldir; `G29`/`M851` komutları derlenmemiştir.
+> This printer **does not have a Z-probe** (neither BLTouch nor an inductive sensor is installed).
+> Bed leveling is manual; `G29`/`M851` commands are not compiled.
 
-İleri:
-- Z Lock manuel kontrol → [Marlin/Configuration_adv.h](../Marlin/Configuration_adv.h) → `SERMOON_Z_LOCK` araması
-- Backport edilen yeni özellikler → [CHANGELOG.md](../CHANGELOG.md)
-- Sermoon-spesifik feature flag listesi → [proje README](../README.md#sermoona-özgü-flag'ler)
+Advanced:
+- Z Lock manual control → [Marlin/Configuration_adv.h](../Marlin/Configuration_adv.h) → search for `SERMOON_Z_LOCK`
+- Backported new features → [CHANGELOG.md](../CHANGELOG.md)
+- Sermoon-specific feature flag list → [project README](../README.md#sermoon-specific-flags)

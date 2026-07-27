@@ -1,135 +1,131 @@
-# Sermoon D1 — PID Otomatik Tuning Rehberi
+# Sermoon D1 — PID Auto-Tuning Guide
 
-PID (Proportional-Integral-Derivative) tuning, hotend ve yatak sıcaklığını
-hedef değerde **stabil** tutmak için kontrol katsayılarını kalibre eder.
+PID (Proportional-Integral-Derivative) tuning calibrates the control coefficients to keep the hotend and bed temperatures **stable** at the target value.
 
-Bu firmware'de:
-- Hotend PID: ✅ aktif (`PIDTEMP`)
-- Yatak PID: ✅ aktif (`PIDTEMPBED`)
-- Otomatik tuning: ✅ aktif (`M303` + `PID_AUTOTUNE_MENU`)
-- Manuel düzenleme: ✅ aktif (`PID_EDIT_MENU` + `M301`/`M304`)
+In this firmware:
+- Hotend PID: ✅ active (`PIDTEMP`)
+- Bed PID: ✅ active (`PIDTEMPBED`)
+- Auto tuning: ✅ active (`M303` + `PID_AUTOTUNE_MENU`)
+- Manual editing: ✅ active (`PID_EDIT_MENU` + `M301`/`M304`)
 
-## Neden Tuning Şart?
+## Why is Tuning Mandatory?
 
-Configuration.h'da yer alan **default değerler genel-amaçlıdır**, Sermoon
-donanımına özel değildir:
+The **default values** located in Configuration.h are general-purpose; they are not specific to the Sermoon hardware:
 
 ```c
-// Hotend (Ultimaker referans değerleri)
+// Hotend (Ultimaker reference values)
 DEFAULT_Kp = 21.73, Ki = 1.54, Kd = 76.55
 
-// Yatak (250W silikon referans)
+// Bed (250W silicone reference)
 DEFAULT_bedKp = 327.11, bedKi = 19.20, bedKd = 1393.45
 ```
 
-Sermoon D1'in 24V 40W hotend ve ~200W yatak'ı bu referanslarla aynı
-**termal kütle/zaman sabiti** profiline sahip değil. Sonuçlar:
-- **Aşırı salınım** (hedef ±5°C dalgalanma)
-- **Overshoot** (set 200°C → ölçüm 207°C)
-- **Yavaş sıkışma** (set 200°C → 30 sn 195°C'de takılı)
-- **Bang-bang davranışı** (PID etkisiz, klasik on/off gibi)
+The 24V 40W hotend and ~200W bed of the Sermoon D1 do not share the same **thermal mass/time constant** profile as these references. The results:
+- **Excessive oscillation** (target ±5°C fluctuation)
+- **Overshoot** (set 200°C → measuring 207°C)
+- **Slow settling** (set 200°C → stuck at 195°C for 30 sec)
+- **Bang-bang behavior** (PID ineffective, acting like classic on/off)
 
-Doğru tuning sonrası:
-- Hedef sıcaklığa **±0.5°C** içinde tutunma
+After proper tuning:
+- Holding within **±0.5°C** of the target temperature
 - Overshoot < 2°C
-- Print kalitesinde sıcaklık-bağımlı artifaktların azalması
+- Reduction of temperature-dependent artifacts in print quality
 
-## Tuning Prosedürü
+## Tuning Procedure
 
-### 1. Yazıcıyı Hazırla
+### 1. Prepare the Printer
 
 ```
-✓ Yazıcı tam soğuk (oda sıcaklığında, ~25°C)
-✓ Print bittikten en az 30 dk geçmiş (uniform termal denge)
-✓ Kabin kapağı kapalı (gerçek print koşullarıyla aynı)
-✓ SD kart yerinde
+✓ Printer completely cold (at room temperature, ~25°C)
+✓ At least 30 minutes passed since the last print finished (uniform thermal equilibrium)
+✓ Chamber enclosure closed (same as actual print conditions)
+✓ SD card inserted
 ```
 
-### 2. Hotend Tuning (8-12 dakika)
+### 2. Hotend Tuning (8-12 minutes)
 
-**Yöntem A — SD karttan:**
-1. `pid_hotend.gcode` dosyasını SD'nin köküne kopyala
-2. Yazıcıyı boot et
-3. Ekrandan "Print" → `pid_hotend.gcode` seç
-4. Bekle (yazıcı 210°C'ye ısınır, ~8 cycle salınım yapar)
-5. Sonuç ekranda + EEPROM'a otomatik kaydedilir
+**Method A — From SD card:**
+1. Copy the `pid_hotend.gcode` file to the root of the SD card
+2. Boot the printer
+3. From the screen: "Print" → select `pid_hotend.gcode`
+4. Wait (the printer will heat to 210°C, perform ~8 cycles of oscillation)
+5. Result appears on screen + automatically saved to EEPROM
 
-**Yöntem B — Host (OctoPrint/PrusaSlicer console)'dan:**
+**Method B — From Host (OctoPrint/PrusaSlicer console):**
 ```gcode
-M106 S128                ; Part fan %50 — gerçek print yükü simülasyonu
-M303 E0 S210 C8 U1       ; Tune et + uygula
-M500                     ; Kaydet
+M106 S128                ; Part fan at 50% — simulates actual print load
+M303 E0 S210 C8 U1       ; Tune + apply
+M500                     ; Save
 M107                     ; Fan off
 ```
 
-**Parametre özelleştirme:**
-- `S210` — kullandığın filament sıcaklığı (PLA: 195-210, PETG: 230, ABS: 240)
-- `C8` — cycle sayısı (3 minimum, 5 yeterli, 8 yüksek kalite)
-- `U1` — otomatik uygula. Olmazsa sadece raporlar.
+**Customizing parameters:**
+- `S210` — the filament temperature you use (PLA: 195-210, PETG: 230, ABS: 240)
+- `C8` — cycle count (3 minimum, 5 sufficient, 8 high quality)
+- `U1` — auto-apply. If omitted, it only reports.
 
-### 3. Yatak Tuning (25-40 dakika)
+### 3. Bed Tuning (25-40 minutes)
 
 ```gcode
-M303 E-1 S60 C5 U1       ; 60°C, 5 cycle (PLA için)
+M303 E-1 S60 C5 U1       ; 60°C, 5 cycles (for PLA)
 M500
 ```
 
-ABS için `S100`, PETG için `S80`.
+For ABS use `S100`, for PETG `S80`.
 
-### 4. Doğrulama
+### 4. Verification
 
-Tuning bittikten sonra:
+After tuning finishes:
 
 ```gcode
-M501                     ; EEPROM'dan yükle (emin olmak için)
-M503                     ; Tüm ayarları göster
+M501                     ; Load from EEPROM (to be sure)
+M503                     ; Show all settings
 ```
 
-`M503` çıktısında `M301` (hotend) ve `M304` (yatak) satırlarını ara:
+Look for the `M301` (hotend) and `M304` (bed) lines in the `M503` output:
 
 ```
 echo:; PID settings:
-echo:  M301 P21.73 I1.54 D76.55      ← TUNE ÖNCESİ (default)
-echo:  M304 P327.11 I19.20 D1393.45  ← TUNE ÖNCESİ
+echo:  M301 P21.73 I1.54 D76.55      ← PRE-TUNE (default)
+echo:  M304 P327.11 I19.20 D1393.45  ← PRE-TUNE
 ```
 
-vs. tune sonrası (Sermoon-spesifik örnekler):
+vs. post-tune (Sermoon-specific examples):
 ```
-echo:  M301 P14.48 I0.92 D56.92      ← Sermoon hotend (gerçek print sonucu örnek)
-echo:  M304 P145.83 I26.84 D659.13   ← Sermoon yatak
+echo:  M301 P14.48 I0.92 D56.92      ← Sermoon hotend (actual print result example)
+echo:  M304 P145.83 I26.84 D659.13   ← Sermoon bed
 ```
 
-### 5. Print Testi
+### 5. Print Test
 
-Bir kalibrasyon küpü veya termal-kalibrasyon basit shape print et.
-Console/host'ta sıcaklık grafiğini gözle:
-- Set 200°C → grafik 200 ± 0.5°C bandında düz çizgi olmalı
-- Yatak set 60°C → grafik 60 ± 1°C
+Print a calibration cube or a thermal-calibration basic shape.
+Observe the temperature graph in the console/host:
+- Set 200°C → the graph should be a flat line within the 200 ± 0.5°C band
+- Bed set 60°C → graph 60 ± 1°C
 
-## Beklenen Değer Aralıkları (Sermoon D1)
+## Expected Value Ranges (Sermoon D1)
 
-| Parametre | Tipik aralık | Patolojik |
+| Parameter | Typical range | Pathological |
 |---|---|---|
-| Hotend Kp | 12 - 28 | <5 veya >50 → yanlış sensör/heater |
-| Hotend Ki | 0.5 - 2.0 | >5 → çok agresif, salınım |
-| Hotend Kd | 30 - 90 | <10 veya >200 → ısıtıcı yanıt sorunu |
-| Yatak Kp | 50 - 250 | <20 → çok yavaş, >500 → osilasyon |
-| Yatak Ki | 5 - 30 | — |
-| Yatak Kd | 200 - 1500 | — |
+| Hotend Kp | 12 - 28 | <5 or >50 → wrong sensor/heater |
+| Hotend Ki | 0.5 - 2.0 | >5 → too aggressive, oscillation |
+| Hotend Kd | 30 - 90 | <10 or >200 → heater response issue |
+| Bed Kp | 50 - 250 | <20 → too slow, >500 → oscillation |
+| Bed Ki | 5 - 30 | — |
+| Bed Kd | 200 - 1500 | — |
 
-Değerler bu aralıkların **dışında** çıkıyorsa:
-1. Thermistor bağlantısını kontrol et
-2. Heater wire integrity kontrol et
-3. Tuning sıcaklığını değiştirip tekrar dene
-4. Cycle sayısını artır (`C10`)
+If values fall **outside** these ranges:
+1. Check thermistor connection
+2. Check heater wire integrity
+3. Change tuning temperature and retry
+4. Increase cycle count (`C10`)
 
-## Configuration.h'a Yazma (Opsiyonel)
+## Writing to Configuration.h (Optional)
 
-EEPROM kayıt yeterli — fakat firmware'i tekrar derlersen `M502` (factory
-reset) sonrası kaybolur. Kalıcı default için Configuration.h'da güncelle:
+EEPROM saving is sufficient — but if you recompile the firmware, it will be lost after `M502` (factory reset). To make it a permanent default, update it in Configuration.h:
 
 ```c
-// Sermoon D1 (kişisel kalibrasyon, YYYY-MM-DD)
+// Sermoon D1 (personal calibration, YYYY-MM-DD)
 #define DEFAULT_Kp    14.48
 #define DEFAULT_Ki     0.92
 #define DEFAULT_Kd    56.92
@@ -139,67 +135,61 @@ reset) sonrası kaybolur. Kalıcı default için Configuration.h'da güncelle:
 #define DEFAULT_bedKd  659.13
 ```
 
-Sonra `pio run -e creality` ile rebuild + reflash. Bu adım opsiyonel,
-çoğu kullanıcı için EEPROM yeterli.
+Then rebuild + reflash with `pio run -e creality`. This step is optional, EEPROM is sufficient for most users.
 
 ## Troubleshooting
 
 **"PID Autotune failed! Bad extruder number"**
-→ E parametresi yanlış. Hotend için `E0`, yatak için `E-1` kullanın.
+→ E parameter is wrong. Use `E0` for hotend, `E-1` for bed.
 
 **"PID Autotune failed! temperature too high"**
-→ Hedef sıcaklık çok yüksek (>HEATER_0_MAXTEMP). S değerini düşürün.
+→ Target temperature is too high (>HEATER_0_MAXTEMP). Lower the S value.
 
 **"PID Autotune failed! Timeout"**
-→ Heater bağlantı sorunu, heater veya thermistor arızalı, ya da
-   thermal protection devreye girdi. Donanımı kontrol edin.
+→ Heater connection issue, faulty heater or thermistor, or thermal protection kicked in. Check the hardware.
 
-**Sıcaklık tuning sırasında düşmüyor (cooling phase)**
-→ Part cooling fan kapalı; M106 S128 ile açın. Veya hotend silikon
-   sock yokluğu, sıcaklık çok agresif tutunuyor.
+**Temperature doesn't drop during tuning (cooling phase)**
+→ Part cooling fan is off; turn it on with M106 S128. Or missing hotend silicone sock causes the temperature to hold too aggressively.
 
-**Sonuçlar EEPROM'a kaydedilmedi**
-→ M500 unuttunuz veya EEPROM yazma başarısız. M503 ile kontrol edin.
-   EEPROM hatası varsa M502 ile reset, sonra tekrar deneyin.
+**Results were not saved to EEPROM**
+→ You forgot M500 or the EEPROM write failed. Verify with M503. If there is an EEPROM error, reset with M502, then try again.
 
-**Tuning sonrası ısınma yavaş**
-→ Normal — PID artık daha kontrollü ısıtıyor. Bang-bang gibi tam güç
-   atmıyor. Print için yine yeterli hızda ısınır.
+**Heating is slow after tuning**
+→ Normal — PID now heats with more control. It doesn't output full power like bang-bang. It will still heat up sufficiently fast for printing.
 
-## Tekrar Tuning Ne Zaman?
+## When to Tune Again?
 
-- Heater veya thermistor değiştirildiğinde
-- Hotend tipi değiştirildiğinde (örn. all-metal hotend'e geçiş)
-- Yeni materyal yelpazesi (örn. PLA only → PETG/ABS)
-- Print kalitesinde sıcaklık-bağımlı sorunlar gözlemlendiğinde
-- Yılda bir bakım kontrolü olarak (mekanik aşınmaya bağlı)
+- When a heater or thermistor is replaced
+- When the hotend type is changed (e.g. switching to an all-metal hotend)
+- New spectrum of materials (e.g. PLA only → PETG/ABS)
+- When temperature-dependent issues are observed in print quality
+- As an annual maintenance check (due to mechanical wear)
 
-## İleri Düzey: Materyal-Bazlı PID
+## Advanced: Material-Based PID
 
-Tek değer set hem PLA hem ABS için ortalama olur. Materyal-spesifik
-kontrol istiyorsan **slicer start gcode**'una koyabilirsin:
+A single set of values serves as an average for both PLA and ABS. If you want material-specific control, you can put it in your **slicer start gcode**:
 
 ```gcode
-; PLA start gcode örneği
-M301 P14.48 I0.92 D56.92  ; PLA için optimize edilmiş PID
+; PLA start gcode example
+M301 P14.48 I0.92 D56.92  ; Optimized PID for PLA
 
-; ABS start gcode örneği
-M301 P12.95 I0.85 D49.21  ; ABS daha düşük termal kütle gerektiriyor
+; ABS start gcode example
+M301 P12.95 I0.85 D49.21  ; ABS requires a lower thermal mass
 ```
 
-Her materyalle ayrı tuning yap, sonuçları slicer'a kaydet.
+Tune separately with each material and save the results to the slicer.
 
 ---
 
-## Hızlı Başvuru — Kalibrasyon Komutları
+## Quick Reference — Calibration Commands
 
 ```gcode
-M303 E0 S210 C8 U1   ; Hotend tune (8 cycle, uygula)
-M303 E-1 S60 C5 U1   ; Yatak tune
-M500                 ; EEPROM'a kaydet
-M501                 ; EEPROM'dan yükle
-M502                 ; Factory reset (default değerler)
-M503                 ; Tüm ayarları göster
-M301 P14 I0.92 D57   ; Manuel hotend PID set
-M304 P150 I27 D660   ; Manuel yatak PID set
+M303 E0 S210 C8 U1   ; Hotend tune (8 cycles, apply)
+M303 E-1 S60 C5 U1   ; Bed tune
+M500                 ; Save to EEPROM
+M501                 ; Load from EEPROM
+M502                 ; Factory reset (default values)
+M503                 ; Show all settings
+M301 P14 I0.92 D57   ; Manual hotend PID set
+M304 P150 I27 D660   ; Manual bed PID set
 ```
