@@ -34,7 +34,7 @@
  * Custom fork build identifier: Sermoon-D1-X.Y
  *
  * NOT: DWIN ekran SOFTVERSION (= bu) ile FW_VERSION_TEXT_VP slot'unu doldurur,
- * ekran karakter alanı ~14 karakterle sınırlı; uzun string'ler kırpılabilir.
+ * on-screen character space limited to ~14 characters; long strings can be trimmed.
  */
 // ###########################################################################
 // # UYARI — BU DOSYAYI DEGISTIRDIKTEN SONRA TEMIZ DERLEME SART.             #
@@ -53,17 +53,17 @@
 // #     rm -rf .pio/build/creality && pio run -e creality                    #
 // ###########################################################################
 //
-// Fork sürümüyle AYNI tutulmalı: CHANGELOG.md başlığı, README "Versiyon"
-// satırı ve buradaki değer üçü birlikte güncellenir. Sahada hangi binary'nin
-// yüklü olduğu yalnızca buradan anlaşılır (M115 ve DWIN ekran bu değeri basar).
+// Must be kept THE SAME as the fork version: CHANGELOG.md header, README "Version"
+// row and the value here are updated together. Which binary in the field?
+// It is only understood from this that it is installed (M115 and DWIN screen prints this value).
 //
-// Eski değer "MarlinV2 by CTK" idi: 15 karakter, yukarıdaki ~14 karakterlik
-// DWIN slot'unu aşıyordu (ekranda kırpılıyordu) ve hangi fork sürümünün
-// yüklü olduğunu söylemiyordu. Atıf DETAILED_BUILD_VERSION'a taşındı.
+// Old value was "MarlinV2 by CTK": 15 characters, above ~14 characters
+// It was exceeding the DWIN slot (it was clipping on the screen) and which fork version
+// It didn't say it was installed. Moved attribution to DETAILED_BUILD_VERSION.
 #define SHORT_BUILD_VERSION "SD1-2.8"
 
 /**
- * Verbose version identifier — M115 yanıtında gösterilir.
+ * Verbose version identifier — Shown in M115 response.
  */
 #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " (Sermoon D1 by CTK, base V1.1.10)"
 
@@ -81,8 +81,8 @@
  * The SOURCE_CODE_URL is the location where users will find the Marlin Source
  * Code which is installed on the device.
  *
- * Bu fork için Sermoon D1'e özel dokümantasyon proje root'undaki README ve
- * docs/ altındadır. Public repo URL'si yoksa Marlin upstream URL'sini koru.
+ * Sermoon D1 specific documentation for this fork is in the README in the project root and
+ * It is under docs/. If there is no public repo URL, keep the Marlin upstream URL.
  */
 #define SOURCE_CODE_URL "https://github.com/MarlinFirmware/Marlin"
 

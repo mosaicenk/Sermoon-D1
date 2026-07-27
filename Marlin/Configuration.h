@@ -24,14 +24,14 @@
 /**
  * Configuration.h — Sermoon D1
  *
- * Sabit hedef yazıcı: Creality Sermoon D1 (Cartesian, 280x260x310 mm)
+ * Fixed target printer: Creality Sermoon D1 (Cartesian, 280x260x310 mm)
  * Anakart: Creality V4.3.1 (STM32F103RET6)
- * Ekran: DWIN T5L (yatay, RTS protokolü) — bkz. Marlin/src/lcd/dwin/LCD_RTS.cpp
+ * Display: DWIN T5L (landscape, RTS protocol) — see Marlin/src/lcd/dwin/LCD_RTS.cpp
  *
  * Mekanik parametreler (steps, feedrate, acceleration, jerk, bed/print size)
- * yazıcıya kalibre edildi; değiştirmeden önce M503 ile EEPROM yedekleyin.
+ * calibrated to the printer; Back up EEPROM with M503 before replacing.
  *
- * Gelişmiş ayarlar Configuration_adv.h içindedir.
+ * Advanced settings are in Configuration_adv.h.
  */
 #define CONFIGURATION_H_VERSION 020000
 
@@ -619,7 +619,7 @@
 #define X_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define Y_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
 #define Z_MAX_ENDSTOP_INVERTING false // Set to true to invert the logic of the endstop.
-#define Z_MIN_PROBE_ENDSTOP_INVERTING false // PNP NO endüktif sensör: HIGH = trigger → invert yok
+#define Z_MIN_PROBE_ENDSTOP_INVERTING false // PNP NO inductive sensor: HIGH = trigger → no invert
 
 /**
  * Stepper Drivers
@@ -636,63 +636,63 @@
  *          TMC5130, TMC5130_STANDALONE, TMC5160, TMC5160_STANDALONE
  * :['A4988', 'A5984', 'DRV8825', 'LV8729', 'L6470', 'TB6560', 'TB6600', 'TMC2100', 'TMC2130', 'TMC2130_STANDALONE', 'TMC2160', 'TMC2160_STANDALONE', 'TMC2208', 'TMC2208_STANDALONE', 'TMC2209', 'TMC2209_STANDALONE', 'TMC26X', 'TMC26X_STANDALONE', 'TMC2660', 'TMC2660_STANDALONE', 'TMC5130', 'TMC5130_STANDALONE', 'TMC5160', 'TMC5160_STANDALONE']
  */
-// Sermoon D1 — KARMA sürücü yapılandırması:
+// Sermoon D1 — MIXED driver configuration:
 //   X, Y  : TMC2208 standalone
 //   Z, E0 : HR4988SQ
 //
-// HR4988SQ neden A4988 olarak tanımlanıyor: Marlin'de HR4988 diye bir sürücü
-// tipi yok. HR4988SQ, A4988'in donanım uyumlu klonudur — aynı STEP/DIR/EN
-// arayüzü, aynı MS1/MS2/MS3 mikroadım seçimi, aynı zamanlama sınırları
+// Why is HR4988SQ identified as A4988: Marlin has a driver called HR4988
+// There is no type. HR4988SQ is hardware compatible clone of A4988 — same STEP/DIR/EN
+// interface, same MS1/MS2/MS3 microstep selection, same timing limits
 // (min 1 µs step darbesi, min 200 ns DIR setup). Marlin'in A4988 tipi bu
-// zamanlamaları doğru üretir; başka bir tip seçmek yanlış darbe genişliği
-// demek olur. Sürücü tipi Marlin'de yalnızca zamanlama + yetenek makrolarını
-// belirler, çipe veri gönderilmez (ikisi de standalone).
+// produces accurate timings; choosing another type wrong pulse width
+// It means. Only timing + ability macros on driver type Marlin
+// determines, no data is sent to the chip (both are standalone).
 //
-// _STANDALONE son eki (X/Y): firmware sürücüyle KONUŞMAZ. HAS_TRINAMIC false
-// kalır → M906/M569/M122/M350 ve sensorless homing yok, akım potansiyometreyle
-// ayarlanır. HR4988SQ için de aynı — akım Vref potuyla ayarlanır.
+// _STANDALONE suffix (X/Y): firmware does NOT talk to the drive. HAS_TRINAMIC false
+// remains → M906/M569/M122/M350 and no sensorless homing, with current potentiometer
+// is set. Same for HR4988SQ — current is set via Vref pot.
 //
-// KARMA YAPILANDIRMANIN İKİ GLOBAL YAN ETKİSİ (Marlin bu makroları eksen
-// bazında değil, kart genelinde tek değer olarak üretir):
+// TWO GLOBAL SIDE EFFECTS OF MIXED CONFIGURATION (Marlin uses these macros as axis
+// produces a single value across the card rather than on a per-card basis):
 //
-//   1. MINIMUM_STEPPER_POST_DIR_DELAY: Conditionals_post.h'da A4988 dalı
-//      (satır 572) TRINAMICS dalından (574) ÖNCE gelir. Tabloda A4988 varken
-//      değer 20 ns → 200 ns olur ve TÜM eksenlere uygulanır. Bu doğrudur:
-//      HR4988SQ 200 ns DIR setup ister, TMC2208 için 200 ns zararsız fazlalık
-//      (yön değişimi başına 180 ns ek, pratikte ölçülemez).
+// 1. MINIMUM_STEPPER_POST_DIR_DELAY: A4988 branch in Conditionals_post.h
+// (line 572) comes BEFORE the TRINAMICS branch (574). With A4988 in the table
+// the value becomes 20 ns → 200 ns and is applied to ALL axes. This is true:
+// HR4988SQ requires 200 ns DIR setup, 200 ns harmless redundancy for TMC2208
+// (an additional 180 ns per direction change, practically unmeasurable).
 //   2. MINIMUM_STEPPER_PULSE / MAXIMUM_STEPPER_RATE: ikisi de
-//      Configuration_adv.h'da AÇIKÇA tanımlı (1 / 400000), o yüzden bu
-//      otomatik dallar devreye girmez. Gerekçe orada yazılı.
+// It is EXPRESSLY defined (1 / 400000) in configuration_adv.h, so this
+// automatic branches are not activated. The reason is written there.
 //
-// HR4988SQ'da 256x interpolasyon YOKTUR. TMC2208 standalone modda 16x girişi
-// içeride 256'ya interpole eder; HR4988SQ'da 16x gerçekten 16x'tir. Z ve E
-// bu yüzden daha sesli çalışır. Telafi: ADAPTIVE_STEP_SMOOTHING açık
-// (Configuration_adv.h) — düşük step frekanslarında efektif çözünürlüğü
-// artırır. Sürücüler karta lehimli (ayrı modül değil); mikroadım jumper değil,
-// PCB üzerinde sabit kablanmış (MS pinleri MCU'ya da bağlı değil), 16x
-// varsayılır: DEFAULT_AXIS_STEPS_PER_UNIT Z=400 ve E=95 bu varsayıma dayanır.
-// Farklı bir mikroadımda üretilmiş bir kart kullanılıyorsa steps/mm aynı
-// oranda değişmelidir.
+// The HR4988SQ does NOT have 256x interpolation. TMC2208 16x input in standalone mode
+// internally interpolates to 256; On the HR4988SQ, 16x is really 16x. Z and E
+// That's why it works louder. Compensation: ADAPTIVE_STEP_SMOOTHING on
+// (Configuration_adv.h) — effective resolution at low step frequencies
+// increases. Drivers are soldered to the board (not separate modules); microstep is not a jumper,
+// Hard-wired on PCB (MS pins are not connected to MCU either), 16x
+// is assumed: DEFAULT_AXIS_STEPS_PER_UNIT Z=400 and E=95 are based on this assumption.
+// If a card produced with a different microstep is used, steps/mm is the same
+// should change at this rate.
 #define X_DRIVER_TYPE  TMC2208_STANDALONE
 #define Y_DRIVER_TYPE  TMC2208_STANDALONE
-// Z: TEK sürücüye PARALEL bağlı İKİ motor. Marlin tarafında bu tek eksen /
-// tek sürücüdür — Z2_DRIVER_TYPE kapalı kalmalı (o, ikinci bir STEP/DIR/EN
-// seti olan bağımsız sürücü demektir; burada öyle bir donanım yok).
-// Paralel bağlantı sürücü açısından kritiktir: iki sarım paralel olduğu için
-// eşdeğer empedans yarıya iner ve sürücünün verdiği akım iki motora BÖLÜNÜR.
-// Motor başına aynı torku almak için Vref, tek motorlu kuruluma göre iki kat
-// akma karşılık gelecek şekilde ayarlanmalıdır. HR4988SQ bu noktada TMC2208'e
-// göre belirgin daha çok ısınır — soğutma şart, ayrıntı README'de.
+// Z: TWO motors connected in PARALLEL to ONE drive. On the Marlin side this single axis /
+// is a single drive — Z2_DRIVER_TYPE must remain closed (it is a second STEP/DIR/EN
+// means independent driver with set; There is no such hardware here).
+// Parallel connection is critical for the driver: since the two windings are parallel
+// The equivalent impedance is halved and the current delivered by the driver is DIVIDED between the two motors.
+// To get the same torque per motor, Vref is twice that of a single motor setup.
+// must be adjusted to correspond to the flow. HR4988SQ to TMC2208 at this point
+// It gets noticeably hotter than before — cooling is a must, details in the README.
 #define Z_DRIVER_TYPE  A4988
 //#define X2_DRIVER_TYPE A4988
 //#define Y2_DRIVER_TYPE A4988
 //#define Z2_DRIVER_TYPE A4988
 //#define Z3_DRIVER_TYPE A4988
-// E0: HR4988SQ. STEP/DIR pinleri (PB4/PB3) JTAG hattıdır; DISABLE_DEBUG
-// (pins_CREALITY.h) onları GPIO'ya çevirir — o tanım kaldırılırsa ekstruder
-// susar. LIN_ADVANCE açık olduğu için E sürücüsünün darbe zamanlaması
+// E0: HR4988SQ. STEP/DIR pins (PB4/PB3) are JTAG lines; DISABLE_DEBUG
+// (pins_CREALITY.h) converts them to GPIO — if that definition is removed the extruder
+// becomes silent. Pulse timing of drive E because LIN_ADVANCE is on
 // kritik: MINIMUM_STEPPER_PULSE 1 zorunlu (SanityCheck.h:2564).
-// LIN_ADVANCE_K sürücüye özgüdür ve YENİDEN KALİBRE EDİLMELİDİR — bkz.
+// LIN_ADVANCE_K is driver specific and MUST BE RESALIBRATED — see LIN_ADVANCE_K.
 // Configuration_adv.h ve docs/lin_advance/.
 #define E0_DRIVER_TYPE A4988
 //#define E1_DRIVER_TYPE A4988
@@ -744,9 +744,9 @@
  * Override with M92
  *                                      X, Y, Z, E0 [, E1[, E2...]]
  */
-// SD1-1.4: Y steps/mm 80 → 79.60. Kalibrasyon cube ölçümü Y=20.10 mm
-// (X=20.00, Z=20.00 nominal). Sebep: Y belt esnemesi/pulley toleransı.
-// Düzeltme: 80 × (20.00 / 20.10) = 79.60.
+// SD1-1.4: Y steps/mm 80 → 79.60. Calibration cube measurement Y=20.10 mm
+// (X=20.00, Z=20.00 nominal). Reason: Y belt stretching/pulley tolerance.
+// Correction: 80 × (20.00 / 20.10) = 79.60.
 #define DEFAULT_AXIS_STEPS_PER_UNIT   {80, 79.60, 400, 95}
 
 /**
@@ -794,18 +794,18 @@
  * When changing speed and direction, if the difference is less than the
  * value set here, it may happen instantaneously.
  */
-// Sermoon D1: 2026-05-08 — CLASSIC_JERK yerine JUNCTION_DEVIATION'a geçildi.
-// Modern köşe-hız algoritması: tek parametre (JUNCTION_DEVIATION_MM) ile
-// fizik temelli cornering. Geri dönüş gerekirse aşağıdaki block'u tekrar aç:
+// Sermoon D1: 2026-05-08 — Replaced CLASSIC_JERK with JUNCTION_DEVIATION.
+// Modern corner-velocity algorithm: with one parameter (JUNCTION_DEVIATION_MM)
+// Physics based cornering. If a rollback is necessary, reopen the following block:
 //
 //   #define CLASSIC_JERK
 //   #if ENABLED(CLASSIC_JERK)
-//     #define DEFAULT_XJERK 10.0     ← önceki kalibre değerler
+// #define DEFAULT_XJERK 10.0 ← previous calibrated values
 //     #define DEFAULT_YJERK 10.0
 //     #define DEFAULT_ZJERK  0.4
 //   #endif
 //
-// JUNCTION_DEVIATION yorumu için bkz. docs/junction_deviation/README.md
+// See JUNCTION_DEVIATION comment. docs/junction_deviation/README.md
 
 //#define CLASSIC_JERK
 #if ENABLED(CLASSIC_JERK)
@@ -824,17 +824,17 @@
 /**
  * Junction Deviation Factor
  *
- * Köşe geçişlerinde toolhead'in ideal yoldan ne kadar (mm) sapmasına
- * izin verildiğini belirler. Düşük = daha sıkı/kaliteli, yüksek = daha
- * hızlı ama köşelerde overshoot.
+ * How much (mm) should the toolhead deviate from the ideal path during corner transitions?
+ * determines what is allowed. Low = firmer/quality, high = more
+ * fast but overshoot in corners.
  *
- * Sermoon D1 başlangıç değeri: 0.013 (Marlin default, Cartesian için iyi)
- * Kalibre aralığı: 0.005 - 0.025
- *   < 0.005 → çok sıkı, print yavaşlar, çoğunlukla gereksiz
- *   0.008  → mükemmel kalite, ~%5-10 yavaş
+ * Sermoon D1 starting value: 0.013 (Marlin default, good for Cartesian)
+ * Caliber range: 0.005 - 0.025
+ * < 0.005 → too tight, print slows down, mostly unnecessary
+ * 0.008 → excellent quality, ~5-10% slower
  *   0.013  → DEFAULT (denge)
- *   0.020  → hızlı, hafif overshoot kabul edilebilir
- *   > 0.025 → köşeler belirgin yuvarlanır
+ * 0.020 → fast, slight overshoot acceptable
+ * > 0.025 → corners are significantly rounded
  *
  * Kalibrasyon: docs/junction_deviation/README.md
  *
@@ -873,7 +873,7 @@
  *
  * Enable this option for a probe connected to the Z Min endstop pin.
  */
-//#define Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN  // Probe ayrı pin (PB1), Z_MIN (PA7) mekanik endstop kalır
+// #define Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN // Probe separate pin (PB1), Z_MIN (PA7) remains mechanical endstop
 
 /**
  * Z_MIN_PROBE_PIN
@@ -984,11 +984,11 @@
  *
  * Specify a Probe position as { X, Y, Z }
  */
-// {X, Y, Z} — sensör monte edildikten sonra fiziksel olarak ölç
-// X: sensör nozulun sağındaysa +, solundaysa -
-// Y: sensör nozulun arkasındaysa (Y+), önündeyse (Y-)
-// Z: sensör yüzü nozul ucundan yukarıda → + (örn: 2mm yukarıda → Z=2)
-#define NOZZLE_TO_PROBE_OFFSET { 0, 0, 2 }  // Başlangıç — kalibre et!
+// {X, Y, Z} — physically measure after the sensor is mounted
+// X: + if the sensor is to the right of the nozzle, - if it is to the left
+// Y: if the sensor is behind the nozzle (Y+), if it is in front of the nozzle (Y-)
+// Z: sensor face above nozzle tip → + (e.g. 2mm above → Z=2)
+#define NOZZLE_TO_PROBE_OFFSET { 0, 0, 2 }  // Getting started — calibrate!
 
 // Certain types of probes need to stay away from edges
 #define MIN_PROBE_EDGE 30
@@ -1011,7 +1011,7 @@
  * A total of 2 does fast/slow probes with a weighted average.
  * A total of 3 or more adds more slow probes, taking the average.
  */
-#define MULTIPLE_PROBING 2  // Her noktada 2× prob → daha doğru sonuç
+#define MULTIPLE_PROBING 2  // 2× probe at each point → more accurate result
 //#define EXTRA_PROBING    1
 
 /**
@@ -1128,9 +1128,9 @@
 // Travel limits (mm) after homing, corresponding to endstop positions.
 #define X_MIN_POS -10
 #define Y_MIN_POS -10
-// SD1-1.3: Z_MIN_POS 0 → -1. MANUAL_Z_HOME_POS=-1 ile uyumlu olması için.
-// Mekanik trigger artık Z=-1 olarak rapor edilir, Z=0 trigger'dan 1 mm yukarı.
-// Slicer'ın ilk katmanı (Z=0.2) fiziksel olarak yataktan 1.2 mm yukarıda başlar.
+// SD1-1.3: Z_MIN_POS 0 → -1. To be compatible with MANUAL_Z_HOME_POS=-1.
+// Mechanical trigger is now reported as Z=-1, 1mm up from Z=0 trigger.
+// The first layer of the slicer (Z=0.2) physically starts 1.2 mm above the bed.
 #define Z_MIN_POS -1
 #define X_MAX_POS X_BED_SIZE
 #define Y_MAX_POS Y_BED_SIZE
@@ -1237,7 +1237,7 @@
  */
 //#define AUTO_BED_LEVELING_3POINT
 //#define AUTO_BED_LEVELING_LINEAR
-//#define AUTO_BED_LEVELING_BILINEAR  // Kapalı — tek nokta probing (G30), mesh yok
+// #define AUTO_BED_LEVELING_BILINEAR // Off — single point probing (G30), no mesh
 //#define AUTO_BED_LEVELING_UBL
 //#define MESH_BED_LEVELING
 
@@ -1376,9 +1376,9 @@
 // For DELTA this is the top-center of the Cartesian print volume.
 //#define MANUAL_X_HOME_POS 0
 //#define MANUAL_Y_HOME_POS 0
-// SD1-1.3: Tabla ayar vidaları range'inin sonu için Z=0 referansını 1 mm yukarı
-// kaydır. Mekanik Z trigger artık koordinat olarak Z=-1, Z=0 trigger'dan 1 mm yukarı.
-// Bed leveling boşluk sorunu için workaround — kalıcı, M502 sonrası bile geçerli.
+// SD1-1.3: Increase the Z=0 reference by 1 mm for the end of the range of table adjustment screws.
+// swipe. The mechanical Z trigger is now coordinate Z=-1, 1 mm above the Z=0 trigger.
+// Workaround for bed leveling clearance issue — permanent, valid even after M502.
 #define MANUAL_Z_HOME_POS -1
 
 // Use "Z Safe Homing" to avoid homing with a Z probe outside the bed area.
@@ -1390,38 +1390,38 @@
 // - Move the Z probe (or nozzle) to a defined XY point before Z Homing when homing all axes (G28).
 // - Prevent Z homing when the Z probe is outside bed area.
 //
-#define Z_SAFE_HOMING  // Probe bed dışındayken Z home yapmasını engelle
+#define Z_SAFE_HOMING  // Prevent probe from doing Z home when off bed
 
 #if ENABLED(Z_SAFE_HOMING)
   /**
-   * SD1-2.7: Z home noktası tabla ortasından HOMING PARK NOKTASINA alındı.
+   * SD1-2.7: Z home point was moved from the center of the plate to HOMING PARK POINT.
    *
-   * İstek: "homing sonrası iki eksen tabla ortasına gidiyor, gitmesinler;
+   * Request: "After homing, the two axes go to the center of the table, they should not go;
    * X ve Y −8'de park etsin."
    *
-   * Değerler X/Y homing'in bıraktığı konumun ta kendisi:
-   *   homeaxis() sonunda eksen X_MIN_POS/Y_MIN_POS = −10 sayılır ve
-   *   SD1-2.8'den beri HOMING_BACKOFF_MM'in X/Y girdileri 0 olduğu için
-   *   geri çekme hareketi hiç üretilmez → eksen −10'da kalır.
-   * Dolayısıyla home_z_safely()'nin do_blocking_move_to_xy() çağrısı
-   * SIFIR UZUNLUKLU bir hareket olur — nozul hiçbir yere gitmez, X/Y
-   * homing'in bıraktığı yerde kalır ve Z orada homelenir.
+   * The values ​​are exactly where X/Y homing left off:
+   * At the end of homeaxis() the axis is counted as X_MIN_POS/Y_MIN_POS = −10 and
+   * Since the X/Y entries of HOMING_BACKOFF_MM are 0 since SD1-2.8
+   * No retraction motion is produced at all → the axis remains at −10.
+   * Hence home_z_safely()'s call to do_blocking_move_to_xy()
+   * A ZERO LENGTH movement occurs — the nozzle goes nowhere, X/Y
+   * It stays where homing left it and Z is homed there.
    *
-   * NEDEN Z_SAFE_HOMING TAMAMEN KAPATILMADI: bu makro aynı zamanda
-   * "X ve Y homelenmeden Z homelenemez" korumasını sağlıyor
-   * (G28.cpp:128 axis_known_position kontrolü). DWIN ekranı
-   * LCD_RTS.cpp:1459'da tek başına `G28 Z0` gönderebiliyor; koruma
-   * kalkarsa o komut Z'yi kafanın bulunduğu rastgele X/Y'de homeler.
-   * Nokta değiştirmek istenen davranışı veriyor, korumayı ise koruyor.
+   * WHY IS Z_SAFE_HOMING NOT COMPLETELY OFF: this macro is also
+   * It provides the protection "Z cannot be homed until X and Y are homed"
+   * (G28.cpp:128 axis_known_position control). DWIN screen
+   * In LCD_RTS.cpp:1459, it can send `G28 Z0` alone; protection
+   * If it is removed, that command will home Z at random X/Y where the head is located.
+   * Changing the point gives the desired behavior and preserves the protection.
    *
-   * Bu iki değer HOMING_BACKOFF_MM'in X/Y girdileriyle TUTARLI olmalı
-   * (o bir brace-list olduğu için önişlemciden indekslenemiyor). Backoff 0
-   * olduğu sürece doğru değer X_MIN_POS/Y_MIN_POS'un kendisidir; backoff
-   * tekrar sıfırdan farklı yapılırsa buraya aynı miktar eklenmelidir,
-   * aksi hâlde hareket sıfır uzunlukta olmaz ve nozul yer değiştirir.
+   * These two values ​​must be CONSISTENT with the X/Y entries of HOMING_BACKOFF_MM
+   * (it cannot be indexed from the preprocessor because it is a brace-list). Backoff 0
+   * as long as , the correct value is X_MIN_POS/Y_MIN_POS itself; back off
+   * If it is made other than zero again, the same amount should be added here,
+   * otherwise the movement will not be of zero length and the nozzle will be displaced.
    */
-  #define Z_SAFE_HOMING_X_POINT (X_MIN_POS + 1)         // −9: X homing'in bıraktığı nokta (backoff 1mm)
-  #define Z_SAFE_HOMING_Y_POINT (Y_MIN_POS + 1)         // −9: Y homing'in bıraktığı nokta (backoff 1mm)
+  #define Z_SAFE_HOMING_X_POINT (X_MIN_POS + 1)         // −9: point left by X homing (backoff 1mm)
+  #define Z_SAFE_HOMING_Y_POINT (Y_MIN_POS + 1)         // −9: Y homing left off point (backoff 1mm)
 #endif
 
 // Homing speeds (mm/m)
@@ -2219,13 +2219,13 @@
 // at zero value, there are 128 effective control positions.
 // :[0,1,2,3,4,5,6,7]
 //
-// Sermoon D1 not: PA0 fan pini TIM2/TIM5 üzerinde — bunlar TEMP_TIMER ve
-// STEP_TIMER tarafından kullanıldığı için FAST_PWM_FAN açılamaz. Soft PWM
-// frekansını maksimum yükseltmek (SCALE 7) en iyi alternatif:
-//   SCALE 0 →    7.8 Hz  (anlatılamaz buzz, mevcut)
-//   SCALE 7 → 1000  Hz   (yumuşak hum, çok daha az duyulur)
-// Tradeoff: PWM çözünürlüğü 128 → 1 (yani fan hızı 0/255 yerine sadece
-// kabaca on/off). Bu yüzden SOFT_PWM_DITHER ile efektif çözünürlük korunur.
+// Sermoon D1 note: PA0 fan pin is on TIM2/TIM5 — these are TEMP_TIMER and
+// FAST_PWM_FAN cannot be turned on because it is used by STEP_TIMER. Soft PWM
+// The best alternative is to increase the frequency to maximum (SCALE 7):
+// SCALE 0 → 7.8 Hz (inexplicable buzz, present)
+// SCALE 7 → 1000 Hz (soft hum, much less audible)
+// Tradeoff: PWM resolution 128 → 1 (i.e. fan speed only instead of 0/255
+// roughly on/off). Therefore, the effective resolution is preserved with SOFT_PWM_DITHER.
 #define SOFT_PWM_SCALE 7
 
 // If SOFT_PWM_SCALE is set to a value higher than 0, dithering can

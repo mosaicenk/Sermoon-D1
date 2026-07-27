@@ -19,7 +19,7 @@ void SermoonZLock::init() {
   // Pinleri output moda al
   SET_OUTPUT(Z_KEEP_PIN_PB0);
   SET_OUTPUT(Z_KEEP_PIN_PB1);
-  // Boot'ta engage (mevcut Sermoon firmware davranışı ile uyumlu)
+  // Engage at boot (compatible with current Sermoon firmware behavior)
   engage();
 }
 

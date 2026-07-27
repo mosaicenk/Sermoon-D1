@@ -3,22 +3,22 @@
  *
  * Sermoon Z Lock Module
  *
- * Sermoon D1 anakartında PB0 (OUT) ve PB1 (IN/OUT) pinleri Z ekseni
- * "keep" devresine bağlıdır. Kapalı kabin yazıcısında Z ekseninin yer
- * çekimi etkisiyle kayma yapmasını önler.
+ * PB0 (OUT) and PB1 (IN/OUT) pins on Sermoon D1 motherboard are Z axis
+ * It depends on the "keep" circuit. Location of the Z axis in a closed cabinet printer
+ * It prevents it from slipping under the effect of gravity.
  *
- * Mevcut firmware'de her iki pin sürekli HIGH tutulur (engaged state).
- * Bu modül kontrolü düzenli hale getirir ve M888 ile manuel kontrole olanak
+ * In the current firmware, both pins are always kept HIGH (engaged state).
+ * This module streamlines control and allows manual control with M888.
  * verir. Otomatik (hareket-tetiklemeli) mod YOKTUR — bkz. Configuration_adv.h
- * içindeki SERMOON_Z_LOCK_AUTO notu.
+ * SERMOON_Z_LOCK_AUTO note in it.
  *
- * Pin atamaları: pins/stm32/pins_CREALITY.h
+ * Pin assignments: pins/stm32/pins_CREALITY.h
  *   #define Z_KEEP_PIN_PB0   PB0   // OUT — board IN
  *   #define Z_KEEP_PIN_PB1   PB1   // IN  — board OUT
  *
- * NOT: Pin yorumları ve gerçek davranış arasındaki tutarsızlık donanım
- * şeması bilinmediği için doğrulanmadı. Default davranış mevcut firmware
- * ile aynı: her iki pin HIGH (engaged).
+ * NOTE: The discrepancy between pin interpretations and actual behavior may be due to hardware
+ * Unverified because the scheme is unknown. Default behavior current firmware
+ * Same as: both pins are HIGH (engaged).
  */
 #pragma once
 
@@ -30,7 +30,7 @@ class SermoonZLock {
 public:
   static void init();
   static void engage();          // Z lock aktive (her iki pin HIGH)
-  static void release();         // Z lock devre dışı (her iki pin LOW)
+  static void release();         // Z lock disabled (both pins LOW)
   static bool is_engaged() { return engaged; }
 
 private:

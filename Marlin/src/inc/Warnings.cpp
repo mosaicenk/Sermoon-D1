@@ -3,13 +3,13 @@
  *
  * Warnings.cpp — Compile-time warnings for non-fatal config issues
  *
- * Backport from Marlin 2.1.x. Warning'ler config seçimleri ile ilgili
- * dikkat edilmesi gereken noktalar için (hata değil, bilgi/öneri).
+ * Backport from Marlin 2.1.x. Warnings related to config selections
+ * for points that need attention (not an error, but information/suggestion).
  *
- * Compile-time mesajlar #pragma message ile yayınlanır — derleme devam eder.
+ * Compile-time messages are issued with #pragma message — compilation continues.
  */
 
-// MarlinConfig.h zaten Changes.h'ı çekti — burada sadece warning'ler.
+// MarlinConfig.h already pulls Changes.h — just warnings here.
 #include "MarlinConfig.h"
 
 //
@@ -63,14 +63,14 @@
 #endif
 
 //
-// LIN_ADVANCE K kalibrasyon hatırlatması
+// LIN_ADVANCE K calibration reminder
 //
 #if ENABLED(LIN_ADVANCE)
   #pragma message ">>> Note: LIN_ADVANCE active. Direct drive Sermoon için K kalibre et (typ 0.02-0.15). See docs/lin_advance/."
 #endif
 
 //
-// JUNCTION_DEVIATION + CLASSIC_JERK uyarısı (sadece biri aktif olmalı)
+// JUNCTION_DEVIATION + CLASSIC_JERK warning (only one should be active)
 //
 #if ENABLED(CLASSIC_JERK) && defined(JUNCTION_DEVIATION_MM)
   #pragma message ">>> Warning: CLASSIC_JERK and JUNCTION_DEVIATION_MM both defined — only one should be active."

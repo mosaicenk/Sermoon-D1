@@ -339,7 +339,7 @@
           RTS_SndData(ExchangePageBase + 1, ExchangepageAddr);
         }
 
-        // SD kart çıkartıldı
+        // SD card removed
         RTS_SndData(language_change + DWIN_STATUS_CARD_OUT, STATUS_DP_CHAR_VP);
         msgStatus = MSG_CARD_PULLOUT;
         for(int i = 0;i < CardRecbuf.Filesum;i++)
@@ -363,7 +363,7 @@
       }
       RTS_lcd_sd_status = sd_status;
     }
-    // Dosya listesi güncellemesi
+    // File list update
     if (CardUpdate && RTS_lcd_sd_status && IS_SD_INSERTED())
     {
       for (uint16_t i = 0; i < CardRecbuf.Filesum ; i++)
@@ -463,7 +463,7 @@
     feedrate_percentage = 100;
     RTS_SndData(feedrate_percentage, PRINT_PERCENT_DATA_VP);
 
-    RTS_SndData(0, MOTOR_STATUS_ICON_VP); // Motor disable göstergesi
+    RTS_SndData(0, MOTOR_STATUS_ICON_VP); // Engine disabled indicator
     Motor_Switch = 0;
 
     /***************Sıcaklığı ekrana yaz*****************/
@@ -493,7 +493,7 @@
         }
     }
 
-    // Dosya ikonlarını temizle
+    // Clear file icons
     for(int j = 0;j < 20;j++)
     {
       RTS_SndData(10,FILE_SELECT_1_ICON_VP+j);
@@ -816,7 +816,7 @@
 
     delay(2);
 
-    // Seçili dosya adını ekrandan temizle
+    // Clear selected file name from screen
     for(int j = 0;j < 10;j++)
     {
       RTS_SndData(0,FILE_SELECTED_TEXT_VP+j);
@@ -2195,10 +2195,10 @@
         }
       }
 
-      // Filament feed/unload sıcaklık FSM (NozzleTempStatus[0]/[2])
+      // Filament feed/unload temperature FSM (NozzleTempStatus[0]/[2])
       if(NozzleTempStatus[0] || NozzleTempStatus[2])
       {
-        // Filament değişim sıcaklığı tamamlandığında ekran sayfasını güncelle
+        // Update display page when filament change temperature is completed
         if(thermalManager.temp_hotend[0].celsius >= thermalManager.temp_hotend[0].target && NozzleTempStatus[0])
         {
           NozzleTempStatus[1] = 0;
@@ -2222,7 +2222,7 @@
 
       if(AutohomeKey)
       {
-        // Autohome animasyonu (frame 1..8 döngüsü)
+        // Autohome animation (frame 1..8 loop)
         rtscheck.RTS_SndData(AutoHomeIconNum++,HOME_AUTORUN_VP);
         if(AutoHomeIconNum >= 9)
         {
@@ -2230,7 +2230,7 @@
         }
       }
 
-      // Pause sonrası X/Y eksenlerini sıfırla
+      // Reset X/Y axes after pause
       if(pause_action_flag && (PrintStatue[1] == 1) && printingIsPaused() && !planner.has_blocks_queued())
       {
         pause_action_flag = false;

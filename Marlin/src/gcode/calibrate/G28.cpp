@@ -464,8 +464,8 @@ void GcodeSuite::G28(const bool always_home_all) {
           move_z_after_probing();
         #endif
 
-        // SD1-1.2: Z home sonrası bilinen güvenli yüksekliğe git.
-        // Paralel bağlı 2 Z motoru için referans konumu netleştirir.
+        // SD1-1.2: Go to known safe altitude after Z home.
+        // Clarifies the reference position for 2 Z motors connected in parallel.
         #if defined(Z_AFTER_HOMING)
           do_blocking_move_to_z(Z_AFTER_HOMING);
         #endif

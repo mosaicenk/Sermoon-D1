@@ -339,8 +339,8 @@
 // given number of milliseconds.  This gets the fan spinning reliably
 // before setting a PWM value. (Does not work with software PWM for fan on Sanguinololu)
 //
-// Sermoon D1: SOFT_PWM_SCALE 7 ile düşük PWM duty oranlarında fan
-// stall edebilir. 100ms kickstart bunu önler.
+// Sermoon D1: fan at low PWM duty ratios with SOFT_PWM_SCALE 7
+// It may stall. 100ms kickstart prevents this.
 #define FAN_KICKSTART_TIME 100
 
 // Some coolers may require a non-zero "off" state.
@@ -358,9 +358,9 @@
  *
  * Define one or both of these to override the default 0-255 range.
  */
-// Sermoon D1: 4010 part-cooling fan tipik olarak 0-50 PWM aralığında
-// stall/buzz yapar. 50 minimum ile bu ölü-bölge atlanır; M106 S1 hâlâ
-// fanı ~50/255 ile çalıştırır (slicer "minimum fan" ayarına eşdeğer).
+// Sermoon D1: 4010 part-cooling fan typically in the 0-50 PWM range
+// It stalls/buzzes. With a minimum of 50 this dead-zone is bypassed; M106 S1 still
+// runs the fan at ~50/255 (equivalent to the slicer "minimum fan" setting).
 #define FAN_MIN_PWM 50
 //#define FAN_MAX_PWM 128
 
@@ -579,56 +579,56 @@
 #define Y_HOME_BUMP_MM 5
 #define Z_HOME_BUMP_MM 2
 // SD1-1.2: Z slow pass divisor 1 → 4 → Z slow pass 4 mm/s yerine 1 mm/s.
-// Paralel bağlı 2 Z motorunun endstop'a tutarlı eş-konumlu trigger'ı için.
-// SD1-2.9: X/Y slow pass divisor 2 -> 4 (X/Y re-bump 8.3 mm/s yerine 4.1 mm/s - daha yüksek tekrarlanabilirlik)
+// For endstop-consistent co-located triggering of 2 Z motors connected in parallel.
+// SD1-2.9: X/Y slow pass divisor 2 -> 4 (X/Y re-bump 4.1 mm/s instead of 8.3 mm/s - higher repeatability)
 #define HOMING_BUMP_DIVISOR { 4, 4, 4 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
-// SD1-2.7: QUICK_HOME KAPATILDI — kullanıcı isteği: X ve Y sırayla homelensin.
+// SD1-2.7: QUICK_HOME IS CLOSED — user request: Home X and Y sequentially.
 //
-// Açıkken G28, X ve Y'yi tek çapraz hamleyle aynı anda iki endstop'a sürüyordu
-// (hedef (−450, −420), hız 22,8 mm/s). Kapalıyken G28.cpp'deki sıra geçerli:
-// önce X (HOME_Y_BEFORE_X kapalı), sonra Y — her biri kendi hızlı geçiş +
-// 5 mm bump + yavaş geçiş döngüsünü ayrı ayrı yapar.
+// When on, G28 drove X and Y to two endstops simultaneously in a single diagonal move
+// (target (−450, −420), speed 22.8 mm/s). When off, the sequence in G28.cpp is valid:
+// first X (HOME_Y_BEFORE_X off), then Y — each with its own fast toggle +
+// It does the 5 mm bump + slow transition cycle separately.
 //
-// Bedeli süre: çapraz tek tarama yerine iki ayrı tam tarama. Uzak köşeden
-// kabaca 2 katı (hesap; ölçülmedi). Kazancı: iki eksen aynı anda dayanmadığı
-// için gantry'ye binen bileşik yük ortadan kalkar ve hangi eksenin
-// takıldığı belirsiz kalmaz.
+// The cost is time: two separate full scans instead of a single diagonal scan. from the far corner
+// roughly 2 times (calculation; not measured). Gain: does not support two axes simultaneously
+// The compound load on the gantry is eliminated and which axis
+// It does not remain unclear whether it is installed.
 //#define QUICK_HOME                   // If homing includes X and Y, do a diagonal move initially
 /**
- * SD1-2.9: X/Y backoff 0 -> 1. Switch'in yayını sürekli baskıda bırakmamak
- * ve M119 ile kopuk kablo/park ayrımını yapabilmek için 1 mm geri çekilme.
+ * SD1-2.9: X/Y backoff 0 -> 1. Not leaving the switch's spring constantly pressed
+ * and 1 mm retreat to distinguish broken cable/parking with M119.
  */
 #define HOMING_BACKOFF_MM { 1, 1, 2 }  // (mm) Move away from the endstops after homing
 
 /**
- * IMPROVE_HOMING_RELIABILITY — homing süresince X/Y ivmesini geçici düşürür.
+ * IMPROVE_HOMING_RELIABILITY — temporarily reduces X/Y acceleration during homing.
  *
- * G28.cpp:176 begin_slow_homing(): X/Y max_acceleration_mm_per_s2 değerlerini
- * saklayıp 100 mm/s²'ye çeker, sonunda end_slow_homing() geri yükler.
- * (CLASSIC_JERK kapalı — JUNCTION_DEVIATION kullanılıyor — o yüzden jerk
- * dalı derlenmez; etkili olan tek şey ivme düşüşü.)
+ * G28.cpp:176 begin_slow_homing(): X/Y max_acceleration_mm_per_s2 values
+ * saves and slows down to 100 mm/s², eventually end_slow_homing() restores it.
+ * (CLASSIC_JERK is off — JUNCTION_DEVIATION is used — so jerk
+ * branch does not compile; The only thing that has an effect is the acceleration decrease.)
  *
- * NEDEN GEREKLI: QUICK_HOME açık. G28 X/Y'yi tek çapraz hamleyle
- * 22,8 mm/s hızla İKİ mekanik dayanağa aynı anda sürer
+ * WHY IT IS NEEDED: QUICK_HOME is on. G28 X/Y in one diagonal move
+ * Drives simultaneously to TWO mechanical stops at a speed of 22.8 mm/s
  * (= min(homing_feedrate) × √((280/300)² + 1)). Bu hamle
- * DEFAULT_MAX_ACCELERATION ile yapılırsa 800 mm/s² ile başlar; 100 mm/s²
- * hareket başlangıcındaki şoku ve dolayısıyla kayıp adım riskini azaltır.
+ * If done with DEFAULT_MAX_ACCELERATION, it starts with 800 mm/s²; 100mm/s²
+ * It reduces the shock at the beginning of the movement and therefore the risk of lost steps.
  *
- * SD1-2.6 — TAŞINDI VE İLK KEZ ETKİN OLDU.
- * Bu tanım SD1-1.2'den beri Configuration_adv.h'ın TMC bölümünde,
- * `#if HAS_TRINAMIC` bloğunun İÇİNDE duruyordu. Bu kartta X/Y
+ * SD1-2.6 — MOVED AND ACTIVE FOR THE FIRST TIME.
+ * This definition has been in the TMC section of Configuration_adv.h since SD1-1.2,
+ * It was standing INSIDE the `#if HAS_TRINAMIC` block. X/Y on this card
  * TMC2208_STANDALONE, Z/E0 A4988 → HAS_TRINAMIC **false** (drivers.h:80),
- * dolayısıyla makro hiç tanımlanmıyor, G28'deki begin/end_slow_homing()
- * çağrıları `#if` ile tamamen dışarıda kalıyordu. Ölçümle bulundu
- * (`#pragma message` → "IMPROVE_HOMING_RELIABILITY = OFF"); yalnız
- * `#define` satırına bakan bir denetim açık sanırdı.
+ * so the macro is not defined at all, begin/end_slow_homing() on G28
+ * calls were completely leaving out `#if`. found by measurement
+ * (`#pragma message` → "IMPROVE_HOMING_RELIABILITY = OFF"); only
+ * An audit looking at the `#define` line would think it was open.
  */
 #define IMPROVE_HOMING_RELIABILITY
 
-// SD1-1.3: G28 sonu nozzle'ı Z=0'a (paper-test pozisyonu) konumla.
-// MANUAL_Z_HOME_POS=-1 ile birlikte: trigger'dan 1 mm yukarı = 1 mm gap.
-// Bu nokta kullanıcının paper-test ile doğruladığı Z=0 referansıdır.
-// Slicer Z=0.2 → fiziksel 1.2 mm gap (1. katman için ideal).
+// SD1-1.3: Position G28 end nozzle at Z=0 (paper-test position).
+// With MANUAL_Z_HOME_POS=-1: 1 mm up from trigger = 1 mm gap.
+// This point is the Z=0 reference that the user verifies with paper-test.
+// Slicer Z=0.2 → physical 1.2 mm gap (ideal for layer 1).
 #define Z_AFTER_HOMING 0               // (mm) Z height after homing (G28)
 
 // When G28 is called, this option will make Y home before X
@@ -757,10 +757,10 @@
 // Default stepper release if idle. Set to 0 to deactivate.
 // Steppers will shut down DEFAULT_STEPPER_DEACTIVE_TIME seconds after the last move when DISABLE_INACTIVE_? is true.
 // Time can be set by M18 and M84.
-// Sermoon D1 not: Default 120 (2dk) çok kısa idi; tipik filament change
-// veya layer adjust pause'ları kesintiye uğratıyordu. 300 (5dk) optimal:
-// - Çoğu manuel pause durumu kesintiye uğramaz
-// - Kapalı kabinde TMC2208 standalone driver'ların thermal stress'i sınırlı
+// Sermoon D1 note: Default 120 (2 min) was too short; typical filament change
+// or layer adjust was interrupting pauses. 300 (5min) optimal:
+// - Most manual pause situations will not be interrupted
+// - Thermal stress of TMC2208 standalone drivers is limited in a closed cabinet
 // - Z lock module zaten Z pozisyonunu mekanik olarak koruyor
 #define DEFAULT_STEPPER_DEACTIVE_TIME 300
 #define DISABLE_INACTIVE_X true
@@ -887,21 +887,21 @@
  * vibration and surface artifacts. The algorithm adapts to provide the best possible step smoothing at the
  * lowest stepping frequencies.
  */
-// Sermoon D1: karma sürücüde bu ayar artık YÜK TAŞIYOR, kozmetik değil.
-//   X/Y (TMC2208 standalone): 16x giriş, çip içinde 256x'e interpole edilir.
-//                             Donanım zaten pürüzsüz.
-//   Z/E0 (HR4988SQ)         : interpolasyon YOK. 16x gerçekten 16x.
-// Yani düşük/orta step frekanslarında Z ve E'nin adım basamakları duyulur
-// hale gelir — Z'de paralel iki motor olduğu için titreşim daha da belirgin.
-// ADAPTIVE_STEP_SMOOTHING bu aralıkta efektif step rate'i ikiye katlayarak
-// aradaki farkı kapatır. HR4988SQ'ya geçtikten sonra kapatılmamalıdır.
+// Sermoon D1: on hybrid drive this setting is now LOAD-BEARING, not cosmetic.
+// X/Y (TMC2208 standalone): 16x input is interpolated to 256x on-chip.
+// The hardware is already smooth.
+// Z/E0 (HR4988SQ): NO interpolation. 16x is really 16x.
+// So at low/mid step frequencies the stepping steps of Z and E are heard
+// becomes — vibration is even more pronounced because the Z has two engines in parallel.
+// ADAPTIVE_STEP_SMOOTHING doubles the effective step rate in this range
+// closes the gap. It should not be turned off after switching to HR4988SQ.
 //
 // UYARI: Configuration_adv.h'daki INTERPOLATE / *_MICROSTEPS / *_CURRENT
-// tanımları `#if HAS_TRINAMIC` bloğunun içindedir ve bu kartta HİÇ
+// definitions are in the `#if HAS_TRINAMIC` block and there are NO
 // DERLENMEZ (drivers.h:80 — "Does not match standalone configurations").
-// Sürücüler karta lehimli, ayrı jumper'lı modül yok (2026-07-24 board fotoğrafıyla
-// doğrulandı). Mikroadım her iki sürücü ailesinde de PCB üzerinde sabit
-// kablanmıştır; yazılımdan değiştirilemez.
+// Drivers are soldered to the board, there is no module with separate jumpers (via board photo 2026-07-24
+// verified). Microstepping is fixed on the PCB in both driver families.
+// coated; cannot be changed from software.
 #define ADAPTIVE_STEP_SMOOTHING
 
 /**
@@ -1036,7 +1036,7 @@
 
 // Add an 'M73' G-code to set the current percentage
 //
-// Sermoon D1 (2026-05-23): SHOW_REMAINING_TIME — DWIN'e özel.
+// Sermoon D1 (2026-05-23): SHOW_REMAINING_TIME — DWIN exclusive.
 // Marlin'in orijinal `SHOW_REMAINING_TIME`/`LCD_SET_PROGRESS_MANUALLY`
 // sadece HAS_GRAPHICAL_LCD veya EXTENSIBLE_UI istiyor; Sermoon DWIN
 // ekran kullaniyor (ikisi de degil). Bu yuzden Marlin'in standart
@@ -1508,23 +1508,23 @@
 #define LIN_ADVANCE
 #if ENABLED(LIN_ADVANCE)
   //#define EXTRA_LIN_ADVANCE_K // Enable for second linear advance constants
-  // K SÜRÜCÜYE ÖZGÜDÜR — E0 HR4988SQ'ya geçtiği için mevcut değer geçersizdir.
-  // K, ekstruder motorunun komut edilen akışa ne kadar geciktiğini telafi eder;
-  // bu gecikme sürücünün akım regülasyonuna bağlıdır. TMC2208'in stealthChop'u
-  // ile HR4988SQ'nun sabit-kapalı-zaman (constant off-time) chopper'ı aynı
+  // K IS DRIVE SPECIFIC — The current value is invalid because E0 is passed to the HR4988SQ.
+  // K compensates for how much the extruder motor delays the commanded flow;
+  // This delay depends on the current regulation of the drive. TMC2208's stealthChop
+  // The constant off-time chopper of HR4988SQ is the same as
   // basamak tepkisini vermez.
   //
-  // Bu yazıcı DIRECT DRIVE (dişlisiz MK8 tipi; kullanıcı donanım doğrulaması
-  // 2026-07-24). E steps/mm = 95 dişlisiz MK8 besleyicinin değeridir ve
-  // besleyicinin konumunu kanıtlamaz (dişlili direct drive ~400-450 olurdu) —
-  // önceki "95 → Bowden" çıkarımı bu yüzden hatalıydı.
-  // Direct drive'da tipik K 0.02-0.15; 0.06 makul bir başlangıçtır.
-  // Yine de kalibre edilmemiş sayılır: TMC2208 için denenmişti, E'deki sürücü
-  // artık HR4988SQ.
+  // This printer is DIRECT DRIVE (gearless MK8 type; user hardware authentication
+  // 2026-07-24). E steps/mm = 95 is the value of gearless MK8 feeder and
+  // does not prove the position of the feeder (geared direct drive would be ~400-450) —
+  // the previous inference "95 → Bowden" was therefore erroneous.
+  // Typical K 0.02-0.15 in direct drive; 0.06 is a reasonable start.
+  // Still not calibrated: Tried for TMC2208, driver in E
+  // now HR4988SQ.
   //
-  // İLK BASKIDAN ÖNCE KALİBRE ET: docs/lin_advance/ veya
+  // CALIBRATE BEFORE FIRST PRINT: docs/lin_advance/ or
   // https://marlinfw.org/tools/lin_advance/k-factor.html
-  // 0.0-0.3 aralığını 0.02 adımla tara, M900 K<değer> ile canlı dene, M500 ile yaz.
+  // Scan the range 0.0-0.3 with 0.02 steps, try it live with M900 K<value>, write with M500.
   #define LIN_ADVANCE_K 0.06    // Unit: mm compression per 1mm/s extruder speed
   //#define LA_DEBUG            // If enabled, this will generate debug information output over USB.
 #endif
@@ -1599,8 +1599,8 @@
 // G2/G3 Arc Support
 //
 // Sermoon D1 optimizasyon (2026-05-23): MM_PER_ARC_SEGMENT 1 → 2.
-// 1mm segment + MIN_ARC_SEGMENTS 24 + BLOCK_BUFFER_SIZE 16 → küçük yaylar
-// için yüzlerce küçük block. 2mm segment, BLOCK_BUFFER_SIZE 16 ile
+// 1mm segment + MIN_ARC_SEGMENTS 24 + BLOCK_BUFFER_SIZE 16 → small arcs
+// for hundreds of small blocks. 2mm segment with BLOCK_BUFFER_SIZE 16
 // daha iyi flow continuity saglar. Test edilmis slicer-ciktilarinda
 // kalite degisimi yok.
 #define ARC_SUPPORT               // Disable this feature to save ~3226 bytes
@@ -1644,24 +1644,24 @@
  *
  * Override the default value based on the driver type set in Configuration.h.
  */
-// Sermoon D1: karma sürücüde EN KATI gereksinim geçerlidir (bu makro global,
-// eksen başına ayarlanamaz).
+// Sermoon D1: STRICTEST requirement applies in hybrid driver (this macro is global,
+// cannot be set per axis).
 //   TMC2208 (X/Y)  :  20 ns
 //   HR4988SQ (Z/E0): 200 ns  ← belirleyici (A4988 ailesi DIR setup/hold)
 //
-// ÖNCEKİ DEĞER 30 ns İDİ ve HR4988SQ için YETERSİZDİ. Bu bir konfor ayarı
-// değil, doğruluk ayarıdır: DIR pini STEP kenarından yeterince önce kararlı
-// değilse sürücü adımı ESKİ yönde atar. Etkilenen yollar tam da yön
-// değişiminin sık olduğu yerlerdir — Z'de katman geçişi (üstelik paralel iki
-// motor aynı anda yanlış yöne gider) ve E'de her retract/LIN_ADVANCE geri
-// beslemesi. Belirtisi: katman kaymasi, retract sonrası tutarsız akış.
+// THE PREVIOUS VALUE WAS 30 ns AND WAS INSUFFICIENT for the HR4988SQ. This is a comfort setting
+// not, it is the accuracy setting: the DIR pin is stable enough before the STEP edge
+// if not, the driver takes the step in the OLD direction. The affected roads are exactly
+// are places where change of layers occurs frequently — layer transition in Z (moreover, two parallel
+// engine goes in wrong direction at the same time) and every retract/LIN_ADVANCE back in E
+// feed. Symptom: layer shifting, inconsistent flow after retraction.
 //
-// Maliyeti ihmal edilebilir: 72 MHz'de 200 ns ≈ 15 çevrim, yalnızca yön
-// DEĞİŞTİĞİNDE ödenir (her adımda değil).
+// Negligible cost: 200 ns ≈ 15 cycles at 72 MHz, direction only
+// Paid WHEN IT CHANGE (not at each step).
 //
-// Not: bu satırlar tanımlı olduğu için Conditionals_post.h'daki otomatik
-// A4988 dalı (satır 572, 200 ns) devreye GİRMEZ — degeri burada elle vermek
-// zorundayiz. Sürücü tipi değişirse burası da gözden geçirilmelidir.
+// Note: since these lines are defined, the automatic changes in Conditionals_post.h
+// Branch A4988 (line 572, 200 ns) is NOT activated — setting the value manually here
+// We have to. If the driver type changes, this should also be reviewed.
 #define MINIMUM_STEPPER_POST_DIR_DELAY 200
 #define MINIMUM_STEPPER_PRE_DIR_DELAY 200
 
@@ -1676,17 +1676,17 @@
  *
  * Override the default value based on the driver type set in Configuration.h.
  */
-// Sermoon D1: karma sürücü (X/Y TMC2208 standalone, Z/E0 HR4988SQ). Bu değer
-// eksen bazında değil, kart genelinde tektir → tüm sürücülerin en katı
-// gereksinimi alınmalıdır.
-//   HR4988SQ (A4988 uyumlu) : min 1 µs STEP darbesi — belirleyici kısıt.
-//   TMC2208 standalone      : ~100 ns yeterli, 1 µs zararsız fazlalık.
-// Ayrıca SanityCheck.h:2564 LIN_ADVANCE ile birlikte >= 1 zorunlu kılar
-// (0 değerinde derleme hatası). Yani 1 hem donanımın hem SanityCheck'in
-// gereği; düşürülemez.
+// Sermoon D1: hybrid driver (X/Y TMC2208 standalone, Z/E0 HR4988SQ). this value
+// is unique across the board, not on an axis basis → the most rigid of all drives
+// requirement must be taken.
+// HR4988SQ (A4988 compatible): min 1 µs STEP pulse — determining constraint.
+// TMC2208 standalone: ​​~100 ns is sufficient, 1 µs is harmless excess.
+// Also SanityCheck.h:2564 enforces >= 1 with LIN_ADVANCE
+// (compile error with value 0). So 1 is for both hardware and SanityCheck.
+// as required; cannot be dropped.
 //
-// NOT: Marlin bu değeri tanımlamasaydık Conditionals_post.h:592'deki A4988
-// dalından yine 1 alırdı. Açık bırakılıyor ki gerekçe okunabilsin.
+// NOTE: Marlin if we had not defined this value A4988 in Conditionals_post.h:592
+// He would still get 1 in his branch. It is left open so that the justification can be read.
 #define MINIMUM_STEPPER_PULSE 1
 
 /**
@@ -1701,18 +1701,18 @@
  *
  * Override the default value based on the driver type set in Configuration.h.
  */
-// Sermoon D1: karma sürücüde EN DÜŞÜK tavan geçerlidir.
+// Sermoon D1: LOWER ceiling applies on hybrid drive.
 //   TMC2208 (X/Y) : 400 kHz  ← belirleyici
 //   HR4988SQ (Z/E): 500 kHz
-// Bu makro global olduğu için 400000'de kalır; 500000'e çıkarmak X/Y'yi
-// sürücü sınırının üstüne iter. Pratikte bağlayıcı değil: en hızlı eksen
-// X/Y, 250 mm/s × 80 step/mm = 20 kHz — tavanın %5'i.
+// Since this macro is global, it stays at 400000; Increasing X/Y to 500000
+// The driver pushes it over its limit. Practically non-binding: the fastest axis
+// X/Y, 250 mm/s × 80 steps/mm = 20 kHz — 5% of ceiling.
 //
-// Ayrıca stepper.h:160'ta bu değer darbe TABANINI da belirler:
+// Also in stepper.h:160 this value determines the pulse BASE:
 //   _MIN_STEPPER_PULSE_CYCLES = max(F_CPU/MAXIMUM_STEPPER_RATE, (F_CPU/500000)*N)
-//   72 MHz / 400000 = 180 çevrim (2,5 µs)  vs  (72/0,5)*1 = 144 çevrim (2,0 µs)
-// → 180 çevrim kazanır. Yani gerçek darbe genişliği 2,5 µs; HR4988SQ'nun
-// istediği 1 µs'nin rahatça üstünde.
+// 72 MHz / 400000 = 180 cycles (2.5 µs) vs (72/0.5)*1 = 144 cycles (2.0 µs)
+// → Wins 180 spins. So the actual pulse width is 2.5 µs; of HR4988SQ
+// comfortably above the desired 1 µs.
 #define MAXIMUM_STEPPER_RATE 400000
 
 // @section temperature
@@ -1730,7 +1730,7 @@
 // THE BLOCK_BUFFER_SIZE NEEDS TO BE A POWER OF 2 (e.g. 8, 16, 32) because shifts and ors are used to do the ring-buffering.
 //
 // Sermoon D1 optimizasyon (2026-05-23): 16 → 32.
-// SDIO + DWIN ekran + ARC segment + SLOWDOWN ile 16 block darboğaz.
+// 16 block bottleneck with SDIO + DWIN display + ARC segment + SLOWDOWN.
 // RAM %21.7 kullanimda, +512 byte guvenli. Flow continuity belirgin
 // iyilesir, ozellikle kucuk yay/corner hareketlerinde.
 // Sermoon D1'de SDSUPPORT her zaman acik ve tek hedef bu kart oldugu icin
@@ -2039,9 +2039,9 @@
  * https://github.com/teemuatlut/TMCStepper
  */
 // ###########################################################################
-// # SERMOON D1 — AŞAĞIDAKİ BLOĞUN TAMAMI BU KARTTA DERLENMEZ.               #
+// # SERMOON D1 — THE ENTIRE BLOCK BELOW IS NOT COMPILED ON THIS CARD.               #
 // #                                                                          #
-// # HAS_TRINAMIC yalnızca UART/SPI ile YAPILANDIRILABİLİR TMC sürücüler için #
+// # HAS_TRINAMIC only for UART/SPI CONFIGURABLE TMC drives #
 // # true olur. drivers.h:80 bunu acikca soyluyor:                            #
 // #     "Test for supported TMC drivers that require advanced configuration   #
 // #      — Does not match standalone configurations"                          #
@@ -2353,7 +2353,7 @@
   // NOT: IMPROVE_HOMING_RELIABILITY eskiden BURADAYDI (SD1-1.2). Bu blok
   // `#if HAS_TRINAMIC` icinde oldugu ve bu kartta HAS_TRINAMIC false oldugu
   // icin makro HIC TANIMLANMIYORDU — ayar sessizce etkisizdi. SD1-2.6'da
-  // "@section homing" altina tasindi. Ayrintı orada.
+  // Moved under "@section homing". The detail is there.
 
   /**
    * Beta feature!
@@ -2725,7 +2725,7 @@
 /**
  * Hotend Idle Timeout
  * Prevent filament charring at idle by lowering temperature after timeout.
- * (Backport from Marlin 2.1.x — Sermoon kapalı kabin için faydalı)
+ * (Backport from Marlin 2.1.x — Useful for Sermoon closed cabinet)
  */
 //#define HOTEND_IDLE_TIMEOUT
 #if ENABLED(HOTEND_IDLE_TIMEOUT)
@@ -2737,25 +2737,25 @@
 
 /**
  * Sermoon Z Lock Module
- * Sermoon D1 anakartında PB0/PB1 pinleri Z ekseni "keep" devresine bağlı.
- * Kapalı kabin yazıcısında Z ekseninin kayma yapmasını önler.
+ * On the Sermoon D1 motherboard, PB0/PB1 pins are connected to the Z axis "keep" circuit.
+ * Prevents the Z axis from shifting in a closed cabinet printer.
  *
- * Default ON (mevcut firmware davranışıyla uyumlu — boot'ta engage,
- * sürekli HIGH). Manuel kontrol için M888 gcode kullanılabilir.
+ * Default ON (compatible with current firmware behavior — engage at boot,
+ * constantly HIGH). M888 gcode can be used for manual control.
  */
 #define SERMOON_Z_LOCK
 
 /**
  * KALDIRILDI — SERMOON_Z_LOCK_AUTO (Z hareketinde otomatik release/engage).
  *
- * Bu flag hiçbir zaman çalışmıyordu: on_motion_start()/on_motion_end()
- * tanımlıydı ama kod tabanında hiçbir yerden çağrılmıyordu (planner/stepper
- * tarafına hook hiç yazılmamıştı). Açmak davranışı değiştirmiyordu.
+ * This flag was never working: on_motion_start()/on_motion_end()
+ * was defined but not called from anywhere in the code base (planner/stepper
+ * hook was never written on the side). Turning it on did not change the behavior.
  *
- * Yeniden yazılacaksa önce şu ölçülmeli: lock LOW iken gantry elle
- * itilebiliyor mu? Eğer engage durumu Z hareketini zaten engellemiyorsa
- * (mevcut kanıt bu yönde — lock sürekli HIGH ve yazıcı normal çalışıyor)
- * auto mod gereksizdir. Manuel kontrol için M888 yeterli.
+ * If it is to be rewritten, the following must be measured first: gantry manually when lock is LOW
+ * Can it be pushed? If the engage state does not already prevent Z movement
+ * (current evidence suggests this — lock is always HIGH and the printer operates normally)
+ * auto mode is unnecessary. For manual control, M888 is sufficient.
  */
 
 /**

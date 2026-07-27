@@ -18,12 +18,12 @@
  *   M888 S0      Z lock release (pinleri LOW yap)
  *   M888 S1      Z lock engage (pinleri HIGH yap, default)
  *
- * Örnek:
+ * Example:
  *   M888         -> "Z Lock: ENGAGED"
  *   M888 S0      -> "Z Lock: RELEASED"
  *
- * Ayarlanan durum kalıcıdır — hiçbir otomatik mekanizma geri almaz.
- * Boot'ta zlock.init() engage eder; sonrası tamamen manueldir.
+ * The set state is permanent — no automatic mechanism will undo it.
+ * zlock.init() engages at boot; Afterwards it is completely manual.
  */
 void GcodeSuite::M888() {
   if (parser.seenval('S')) {

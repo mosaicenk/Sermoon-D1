@@ -11,7 +11,7 @@
 extern int power_off_type_yes;
 
 // =====================================================
-// DWIN T5L UART çerçeve protokolü
+// DWIN T5L UART frame protocol
 // =====================================================
 constexpr uint8_t  FHONE  = 0x5A;
 constexpr uint8_t  FHTWO  = 0xA5;
@@ -26,13 +26,13 @@ constexpr uint16_t RTS_UPDATE_INTERVAL = 1000;  // 1s for responsive temp/progre
 constexpr uint16_t RTS_UPDATE_VALUE    = 2 * RTS_UPDATE_INTERVAL;
 constexpr uint8_t  SizeofDatabuf       = 40;
 
-// Register / variable read-write komutları
+// Register / variable read-write commands
 constexpr uint8_t  RegAddr_W = 0x80;
 constexpr uint8_t  RegAddr_R = 0x81;
 constexpr uint8_t  VarAddr_W = 0x82;
 constexpr uint8_t  VarAddr_R = 0x83;
 
-// DWIN sayfa değişimi: gerçek sayfa = base + page_id
+// DWIN page replacement: actual page = base + page_id
 constexpr uint32_t ExchangePageBase = 0x5A010000UL;
 constexpr uint16_t ExchangepageAddr = 0x0084;
 
@@ -41,16 +41,16 @@ constexpr uint8_t  FanOn       = 255;
 constexpr uint8_t  FanOff      = 0;
 
 // =====================================================
-// Aktif legacy VP adresleri (kod tarafından hâlâ kullanılan)
+// Active legacy VP addresses (still used by code)
 // =====================================================
-constexpr uint16_t AutoZero      = 0x1046;  // Autohome trigger VP (move ekranı)
+constexpr uint16_t AutoZero      = 0x1046;  // Autohome trigger VP (move screen)
 constexpr uint16_t AutolevelVal  = 0x1100;  // BILINEAR mesh value array
 constexpr uint16_t AutolevelIcon = 0x108D;  // BLTOUCH probe icon
-constexpr uint16_t ExchFlmntIcon = 0x108E;  // Filament değişim progress icon
+constexpr uint16_t ExchFlmntIcon = 0x108E;  // Filament change progress icon
 constexpr uint16_t FilementUnit1 = 0x1054;  // Manual feed/retract uzunluk
 
 // =====================================================
-// Cihaz bilgi string'leri (DWIN ekrandaki "About" sayfası)
+// Device information strings ("About" page on DWIN screen)
 // =====================================================
 #define MACHINE_TYPE      "Sermoon D1"
 #define FIRMWARE_VERSION  "MarlinV2 by CTK"
@@ -61,7 +61,7 @@ constexpr uint16_t FilementUnit1 = 0x1054;  // Manual feed/retract uzunluk
 #define CORP_WEBSITE_E    "www.creality.com"
 
 // =====================================================
-// RTS çerçeve struct'ları
+// RTS framework structs
 // =====================================================
 typedef struct DataBuf
 {
@@ -147,8 +147,8 @@ enum ReturnKeyAddr {
 
 // =====================================================
 // DWIN font tablosundaki status string slot offset'leri
-// STATUS_DP_CHAR_VP'ye yazılan değer = language_change + slot
-// (language_change 1-9 dil ID'si, slot 0-tabanlı)
+// Value written to STATUS_DP_CHAR_VP = language_change + slot
+// (language_change 1-9 language ID, slot 0-based)
 // =====================================================
 enum DwinStatusSlot : uint8_t {
   DWIN_STATUS_CARD_OUT = 53,
@@ -192,102 +192,102 @@ extern void Lcd_Select_Var(unsigned char Num,int BeginAddr,unsigned char TotalNu
 
 
 // =====================================================
-// 9 dilli UI variable address haritası
+// 9-language UI variable address map
 // =====================================================
 
 // Boot progress bar
 constexpr uint16_t START_PROCESS_ICON_VP    = 0x1000;
 
-// --- Başlık (Title) char VP'leri ---
-constexpr uint16_t PRINT_TITLE_CHAR_VP      = 0x1001;  // Yazdır
-constexpr uint16_t TEMP_TITLE_CHAR_VP       = 0x1002;  // Sıcaklık
-constexpr uint16_t SET_TEMP_TITLE_CHAR_VP   = 0x1003;  // Manuel sıcaklık
+// --- Title char VPs ---
+constexpr uint16_t PRINT_TITLE_CHAR_VP      = 0x1001;  // print
+constexpr uint16_t TEMP_TITLE_CHAR_VP       = 0x1002;  // Heat
+constexpr uint16_t SET_TEMP_TITLE_CHAR_VP   = 0x1003;  // manual temperature
 constexpr uint16_t AUX_LEVEL_TITLE_CHAR_VP  = 0x1004;  // Manuel tabla
-constexpr uint16_t REFUL_TITLE_CHAR_VP      = 0x1005;  // Filament değişim
-constexpr uint16_t HEATING_TITLE_CHAR_VP    = 0x1006;  // Isıtılıyor
-constexpr uint16_t AUTO_HOME_TITLE_CHAR_VP  = 0x1007;  // Sıfırla
+constexpr uint16_t REFUL_TITLE_CHAR_VP      = 0x1005;  // filament change
+constexpr uint16_t HEATING_TITLE_CHAR_VP    = 0x1006;  // Heating
+constexpr uint16_t AUTO_HOME_TITLE_CHAR_VP  = 0x1007;  // reset
 constexpr uint16_t LANGUAGE_TITLE_CHAR_VP   = 0x1008;  // Dil
-constexpr uint16_t ABOUT_TITLE_CHAR_VP      = 0x1009;  // Hakkında
+constexpr uint16_t ABOUT_TITLE_CHAR_VP      = 0x1009;  // About
 constexpr uint16_t SETTINGS_TITLE_CHAR_VP   = 0x100A;  // Ayarlar
 constexpr uint16_t FAN_TITLE_CHAR_VP        = 0x100B;  // Fan
 constexpr uint16_t LEVEL_MODE_TITLE_CHAR_VP = 0x100C;  // Tabla modu
 
-// --- Sinyal ikonları ---
-constexpr uint16_t ASSIST_LEVEL_SIGNAL_VP   = 0x1110;  // Yardımcı tablalama
-constexpr uint16_t CHANGE_SIGNAL_VP         = 0x1111;  // Filament değiştirme
-constexpr uint16_t AUTO_HOME_SIGNAL_VP      = 0x1112;  // Sıfırlama
+// --- Signal icons ---
+constexpr uint16_t ASSIST_LEVEL_SIGNAL_VP   = 0x1110;  // Auxiliary sheeting
+constexpr uint16_t CHANGE_SIGNAL_VP         = 0x1111;  // filament replacement
+constexpr uint16_t AUTO_HOME_SIGNAL_VP      = 0x1112;  // reset
 constexpr uint16_t AUTO_LEVEL_SIGNAL_VP     = 0x1113;  // Otomatik tablalama
-constexpr uint16_t PROCESSING_SIGNAL_VP     = 0x1114;  // Yürütülüyor
+constexpr uint16_t PROCESSING_SIGNAL_VP     = 0x1114;  // executing
 
-// --- GIF animasyonları ---
+// --- GIF animations ---
 constexpr uint16_t LEVEL_AUTORUN_VP         = 0x1120;  // Otomatik tablalama animasyonu
-constexpr uint16_t HOME_AUTORUN_VP          = 0x1121;  // Otomatik sıfırlama animasyonu
-constexpr uint16_t MESSAGE_WARING_VP        = 0x1122;  // Uyarı mesajı
-constexpr uint16_t REFUEL_GIF_FILEMENT_VP   = 0x1123;  // Filament değişim animasyonu
+constexpr uint16_t HOME_AUTORUN_VP          = 0x1121;  // Auto reset animation
+constexpr uint16_t MESSAGE_WARING_VP        = 0x1122;  // Warning message
+constexpr uint16_t REFUEL_GIF_FILEMENT_VP   = 0x1123;  // Filament change animation
 
-// --- Ana menü text ---
-constexpr uint16_t PRINT_MAIN_CHAR_VP       = 0x1020;  // Yazdır
-constexpr uint16_t TEMP_MAIN_CHAR_VP        = 0x1021;  // Sıcaklık
+// --- Main menu text ---
+constexpr uint16_t PRINT_MAIN_CHAR_VP       = 0x1020;  // print
+constexpr uint16_t TEMP_MAIN_CHAR_VP        = 0x1021;  // Heat
 constexpr uint16_t SETTINGS_MAIN_CHAR_VP    = 0x1022;  // Ayarlar
 
-// --- Yazdırma ekranı ---
-constexpr uint16_t BEGIN_PRINT_CHAR_VP      = 0x1023;  // Başla
-constexpr uint16_t COMPLETE_PRINT_CHAR_VP   = 0x1024;  // Tamamlandı
+// --- Print screen ---
+constexpr uint16_t BEGIN_PRINT_CHAR_VP      = 0x1023;  // start
+constexpr uint16_t COMPLETE_PRINT_CHAR_VP   = 0x1024;  // completed
 constexpr uint16_t STOP_PRINT_CHAR_VP       = 0x1025;  // Durdur
 constexpr uint16_t ADJUST_PRINT_CHAR_VP     = 0x1029;  // Ayarla
 constexpr uint16_t PAUSE_PRINT_CHAR_VP      = 0x1027;  // Duraklat
 constexpr uint16_t CONTINUE_PRINT_CHAR_VP   = 0x1028;  // Devam et
-constexpr uint16_t PRINT_PERCENT_DATA_VP    = 0x1408;  // Yüzde
+constexpr uint16_t PRINT_PERCENT_DATA_VP    = 0x1408;  // Percentage
 
-// --- Z offset / Adjust ekranı ---
+// --- Z offset / Adjust screen ---
 constexpr uint16_t Z_OFFSET_Z_CHAR_VP       = 0x1030;  // Z offset:
 constexpr uint16_t UNIT_Z_CHAR_VP           = 0x1031;  // Birim 0.01mm
 constexpr uint16_t FAN_Z_CHAR_VP            = 0x1032;  // Fan
-constexpr uint16_t PRINT_SPEED_Z_CHAR_VP    = 0x1033;  // Yazdırma hızı
-constexpr uint16_t NOZZLE_TEMP_Z_CHAR_VP    = 0x1034;  // Nozül sıcaklığı
-constexpr uint16_t BED_TEMP_Z_CHAR_VP       = 0x1035;  // Yatak sıcaklığı
+constexpr uint16_t PRINT_SPEED_Z_CHAR_VP    = 0x1033;  // Print speed
+constexpr uint16_t NOZZLE_TEMP_Z_CHAR_VP    = 0x1034;  // nozzle temperature
+constexpr uint16_t BED_TEMP_Z_CHAR_VP       = 0x1035;  // bed temperature
 
-// --- Sıcaklık ekranı ---
+// --- Temperature display ---
 constexpr uint16_t AUTO_TEMP_CHAR_VP        = 0x1040;  // Auto preset
-constexpr uint16_t MANUAL_TEMP_CHAR_VP      = 0x1041;  // Manuel sıcaklık
-constexpr uint16_t COOLING_TEMP_CHAR_VP     = 0x1042;  // Soğutma
+constexpr uint16_t MANUAL_TEMP_CHAR_VP      = 0x1041;  // manual temperature
+constexpr uint16_t COOLING_TEMP_CHAR_VP     = 0x1042;  // Cooling
 constexpr uint16_t FAN_TEMP_CHAR_VP         = 0x1043;  // Fan
 
-// --- Manuel sıcaklık ekranı ---
-constexpr uint16_t NOZZLE_PREHEAT_CHAR_VP   = 0x1050;  // Nozül ön-ısıtma
-constexpr uint16_t NOZZLE_TEMP_CHAR_VP      = 0x1051;  // Nozül sıcaklığı
-constexpr uint16_t BED_PREHEAT_CHAR_VP      = 0x1052;  // Yatak ön-ısıtma
-constexpr uint16_t BED_TEMP_CHAR_VP         = 0x1053;  // Yatak sıcaklığı
-constexpr uint16_t COOLING_MANUAL_CHAR_VP   = 0x1054;  // Tek tuş soğutma
+// --- Manual temperature display ---
+constexpr uint16_t NOZZLE_PREHEAT_CHAR_VP   = 0x1050;  // Nozzle pre-heating
+constexpr uint16_t NOZZLE_TEMP_CHAR_VP      = 0x1051;  // nozzle temperature
+constexpr uint16_t BED_PREHEAT_CHAR_VP      = 0x1052;  // Bed pre-heating
+constexpr uint16_t BED_TEMP_CHAR_VP         = 0x1053;  // bed temperature
+constexpr uint16_t COOLING_MANUAL_CHAR_VP   = 0x1054;  // One button cooling
 
-// --- Filament değişim ekranı ---
+// --- Filament change screen ---
 constexpr uint16_t EXTRUDER_REFUL_CHAR_VP   = 0x1060;  // Extruder
 constexpr uint16_t UNIT_REFUL_CHAR_VP       = 0x1061;  // Birim:mm
-constexpr uint16_t FEED1_REFUL_CHAR_VP      = 0x1062;  // İlerle 1
-constexpr uint16_t FEED2_REFUL_CHAR_VP      = 0x1063;  // İlerle 2
-constexpr uint16_t RETREAT1_REFUL_CHAR_VP   = 0x1064;  // Geri çek 1
-constexpr uint16_t RETREAT2_REFUL_CHAR_VP   = 0x1065;  // Geri çek 2
+constexpr uint16_t FEED1_REFUL_CHAR_VP      = 0x1062;  // Move forward 1
+constexpr uint16_t FEED2_REFUL_CHAR_VP      = 0x1063;  // Move forward 2
+constexpr uint16_t RETREAT1_REFUL_CHAR_VP   = 0x1064;  // withdraw 1
+constexpr uint16_t RETREAT2_REFUL_CHAR_VP   = 0x1065;  // pull back 2
 
-// --- About ekranı ---
+// --- About screen ---
 constexpr uint16_t MACHINE_TYPE_ABOUT_CHAR_VP = 0x1080;  // Cihaz modeli
-constexpr uint16_t HW_VERSION_ABOUT_CHAR_VP   = 0x1081;  // Donanım sürümü
-constexpr uint16_t FW_VERSION_ABOUT_CHAR_VP   = 0x1082;  // Firmware sürümü
-constexpr uint16_t DP_VERSION_ABOUT_CHAR_VP   = 0x1083;  // Ekran sürümü
-constexpr uint16_t PRINT_SIZE_ABOUT_CHAR_VP   = 0x1084;  // Baskı alanı
+constexpr uint16_t HW_VERSION_ABOUT_CHAR_VP   = 0x1081;  // Hardware version
+constexpr uint16_t FW_VERSION_ABOUT_CHAR_VP   = 0x1082;  // Firmware version
+constexpr uint16_t DP_VERSION_ABOUT_CHAR_VP   = 0x1083;  // Screen version
+constexpr uint16_t PRINT_SIZE_ABOUT_CHAR_VP   = 0x1084;  // printing area
 constexpr uint16_t WEBSITE_ABOUT_CHAR_VP      = 0x1085;  // Web site
 
-// --- Settings ekranı ---
+// --- Settings screen ---
 constexpr uint16_t LEVELING_SET_CHAR_VP     = 0x1090;  // Tabla modu
-constexpr uint16_t REFUL_SET_CHAR_VP        = 0x1091;  // Filament değişim
+constexpr uint16_t REFUL_SET_CHAR_VP        = 0x1091;  // filament change
 constexpr uint16_t MOVE_SET_CHAR_VP         = 0x1092;  // Eksen hareket
 constexpr uint16_t MOTOR_CTRL_SET_CHAR_VP   = 0x1093;  // Motor kontrol
 constexpr uint16_t LANGUAGE_SET_CHAR_VP     = 0x1094;  // Dil
-constexpr uint16_t ABOUT_SET_CHAR_VP        = 0x1095;  // Hakkında
+constexpr uint16_t ABOUT_SET_CHAR_VP        = 0x1095;  // About
 constexpr uint16_t MOTOR_STATUS_ICON_VP     = 0x1224;  // Motor ikonu
 
-// --- Tabla mod ekranı ---
-constexpr uint16_t MEASURE_LEVEL_CHAR_VP    = 0x10A0;  // Platform ölçüm
-constexpr uint16_t AUX_LEVEL_CHAR_VP        = 0x10A1;  // Yardımcı tabla
+// --- Table mode screen ---
+constexpr uint16_t MEASURE_LEVEL_CHAR_VP    = 0x10A0;  // Platform measurement
+constexpr uint16_t AUX_LEVEL_CHAR_VP        = 0x10A1;  // Auxiliary table
 constexpr uint16_t AUTO_LEVEL_CHAR_VP       = 0x10A2;  // Otomatik tabla
 
 // --- Eksen hareket ---
@@ -296,23 +296,23 @@ constexpr uint16_t X_MOVE_CHAR_VP           = 0x10B1;  // X ekseni
 constexpr uint16_t Y_MOVE_CHAR_VP           = 0x10B2;  // Y ekseni
 constexpr uint16_t Z_MOVE_CHAR_VP           = 0x10B3;  // Z ekseni
 
-// --- Dialog kutuları ---
+// --- Dialog boxes ---
 constexpr uint16_t MOTOR_OFF_DIALOG_VP      = 0x1100;  // Motor kapat
 constexpr uint16_t RESUME_PRINT_DIALOG_VP   = 0x1101;  // Power-loss recovery
-constexpr uint16_t REFUEL_DIALOG_VP         = 0x1102;  // Filament uyarısı
-constexpr uint16_t HEATING_DIALOG_VP        = 0x1103;  // Isıtılıyor
+constexpr uint16_t REFUEL_DIALOG_VP         = 0x1102;  // Filament warning
+constexpr uint16_t HEATING_DIALOG_VP        = 0x1103;  // Heating
 constexpr uint16_t NO_FILAMENT_DIALOG_VP    = 0x1104;  // Filament bitti
-constexpr uint16_t COOLING_DIALOG_VP        = 0x1105;  // Soğutma onay
+constexpr uint16_t COOLING_DIALOG_VP        = 0x1105;  // Cooling approval
 constexpr uint16_t PAUSE_DIALOG_VP          = 0x1106;  // Duraklat onay
 constexpr uint16_t STOP_DIALOG_VP           = 0x1107;  // Durdur onay
-constexpr uint16_t CHOOSE_MODE_DIALOG_VP    = 0x1108;  // Mod seçim
-constexpr uint16_t CANCEL_DIALOG_VP         = 0x1109;  // İptal
+constexpr uint16_t CHOOSE_MODE_DIALOG_VP    = 0x1108;  // Mode selection
+constexpr uint16_t CANCEL_DIALOG_VP         = 0x1109;  // Cancel
 constexpr uint16_t YES_1_DIALOG_VP          = 0x110A;  // Evet-1
 constexpr uint16_t YES_2_DIALOG_VP          = 0x110B;  // Evet-2
-constexpr uint16_t NO_1_DIALOG_VP           = 0x110C;  // Hayır-1
-constexpr uint16_t NO_2_DIALOG_VP           = 0x110D;  // Hayır-2
+constexpr uint16_t NO_1_DIALOG_VP           = 0x110C;  // No-1
+constexpr uint16_t NO_2_DIALOG_VP           = 0x110D;  // No-2
 
-// --- Dosya seçim status ikonları (1..20) ---
+// --- File selection status icons (1..20) ---
 constexpr uint16_t FILE_SELECT_1_ICON_VP    = 0x1200;
 constexpr uint16_t FILE_SELECT_2_ICON_VP    = 0x1201;
 constexpr uint16_t FILE_SELECT_3_ICON_VP    = 0x1202;
@@ -334,13 +334,13 @@ constexpr uint16_t FILE_SELECT_18_ICON_VP   = 0x1211;
 constexpr uint16_t FILE_SELECT_19_ICON_VP   = 0x1212;
 constexpr uint16_t FILE_SELECT_20_ICON_VP   = 0x1213;
 
-// --- Diğer status ikonları ---
+// --- Other status icons ---
 constexpr uint16_t FAN_SWITCH_ICON_VP       = 0x1220;
 constexpr uint16_t AUTOLEVEL_SWITCH_ICON_VP = 0x1221;
 constexpr uint16_t PLA_MODE_ICON_VP         = 0x1222;
 constexpr uint16_t ABS_MODE_ICON_VP         = 0x1223;
 
-// --- Dil seçim ikonları ---
+// --- Language selection icons ---
 constexpr uint16_t LANGUAGE_1_ICON_VP       = 0x1225;
 constexpr uint16_t LANGUAGE_2_ICON_VP       = 0x1226;
 constexpr uint16_t LANGUAGE_3_ICON_VP       = 0x1227;
@@ -354,17 +354,17 @@ constexpr uint16_t LANGUAGE_9_ICON_VP       = 0x122D;
 // --- Status string single-VP (language_change + DwinStatusSlot) ---
 constexpr uint16_t STATUS_DP_CHAR_VP        = 0x1300;
 
-// --- Veri (data) variable'ları ---
-constexpr uint16_t NOZZLE_PREHEAT_DATA_VP   = 0x1400;  // Nozül ön-ısıtma sıcaklığı
-constexpr uint16_t NOZZLE_TEMP_DATA_VP      = 0x1402;  // Nozül anlık sıcaklığı
-constexpr uint16_t BED_PREHEAT_DATA_VP      = 0x1404;  // Yatak ön-ısıtma sıcaklığı
-constexpr uint16_t BED_TEMP_DATA_VP         = 0x1406;  // Yatak anlık sıcaklığı
+// --- Data variables ---
+constexpr uint16_t NOZZLE_PREHEAT_DATA_VP   = 0x1400;  // Nozzle preheat temperature
+constexpr uint16_t NOZZLE_TEMP_DATA_VP      = 0x1402;  // Nozzle instantaneous temperature
+constexpr uint16_t BED_PREHEAT_DATA_VP      = 0x1404;  // Bed pre-heating temperature
+constexpr uint16_t BED_TEMP_DATA_VP         = 0x1406;  // Bed instantaneous temperature
 
 constexpr uint16_t PRINT_TIMEHOUR_DATA_VP   = 0x140B;
 constexpr uint16_t PRINT_TIMEMIN_DATA_VP    = 0x140E;
 
-// --- Kalan süre (Sermoon D1 2026-05-23: SHOW_REMAINING_TIME) ---
-// 0x1410 — kalan süre (dakika). M73 veya elapsed/pct extrapolation'dan.
+// --- Remaining time (Sermoon D1 2026-05-23: SHOW_REMAINING_TIME) ---
+// 0x1410 — remaining time (minutes). From M73 or elapsed/pct extrapolation.
 // DWIN ekran tasariminda bu VP'ye text alani baglanmali.
 // Mevcut DWIN firmware'inde kullanici ekraninda bu alan yoksa da yazilir;
 // kullanici gormez ama firmware hesaplamasi dogru calisir.
@@ -378,7 +378,7 @@ constexpr uint16_t CHANGE_FILAMENT_UNIT_KEY = 0x1418;
 
 constexpr uint16_t AUTO_LEVEL_DATA_VP       = 0x1840;
 
-constexpr uint16_t Z_OFFSET_DISPLAY_VP      = 0x1026;  // Adjust ekranı Z offset göstergesi
+constexpr uint16_t Z_OFFSET_DISPLAY_VP      = 0x1026;  // Adjust screen Z offset indicator
 constexpr uint16_t Z_OFFSET_DATA_VP         = 0x2100;
 constexpr uint16_t TEMP_WARNING_DATA_VP     = 0x2120;
 
@@ -386,7 +386,7 @@ constexpr uint16_t X_MOVE_DATA_KEY          = 0x2112;
 constexpr uint16_t Y_MOVE_DATA_KEY          = 0x2114;
 constexpr uint16_t Z_MOVE_DATA_KEY          = 0x2116;
 
-// --- Dosya adı text slot'ları (her biri 20 byte, file 1..20) ---
+// --- Filename text slots (20 bytes each, file 1..20) ---
 constexpr uint16_t FILE_FIRST_TEXT_VP       = 0x1600;
 
 constexpr uint16_t FILE_DISPLAY_1_TEXT_VP   = 0x1600;
