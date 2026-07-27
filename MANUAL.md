@@ -278,17 +278,41 @@ LIN_ADVANCE aktif, K kalibrasyonu hatırlatması.
 #define HOMING_BUMP_DIVISOR   { 2, 2, 4 }  // İkinci geçiş hız böleni
 #define HOMING_BACKOFF_MM     { 2, 2, 2 }  // Homing sonrası geri çekilme
 #define QUICK_HOME                       // X+Y aynı anda home
+#define IMPROVE_HOMING_RELIABILITY       // Homing boyunca X/Y ivmesi → 100 mm/s²
 ```
+
+> **`IMPROVE_HOMING_RELIABILITY` SD1-2.6'ya kadar etkisizdi.** Tanım
+> `Configuration_adv.h`'ın TMC bölümünde, `#if HAS_TRINAMIC` bloğunun içindeydi;
+> bu kartta `HAS_TRINAMIC` false olduğu için makro hiç tanımlanmıyordu ve
+> homing tam ivmeyle (800 mm/s²) çalışıyordu. SD1-2.6'da `@section homing`
+> altına taşındı. `CLASSIC_JERK` kapalı olduğundan yalnızca ivme dalı
+> derlenir; jerk'e dokunulmaz.
 
 ### 6.2 Homing Akışı
 
+Aşağıdaki değerler ölçülmüş yapılandırmadan türetilmiştir
+(`max_length` X = 290−(−10) = 300 mm, Y = 270−(−10) = 280 mm;
+`HOMING_FEEDRATE_XY` 1000 mm/dk = 16,67 mm/s).
+
 ```
-1. QUICK_HOME: X ve Y aynı anda MIN yönünde hareket
-2. X/Y ayrı ayrı bump: 5mm geri çek → yavaş tekrar dokun (hız/2)
-3. Z home: MIN yönünde 240 mm/m hızla dokun
-4. Z bump: 2mm geri çek → yavaş tekrar dokun (hız/4)
-5. Her eksen BACKOFF_MM kadar geri çekilir
+0. X/Y ivmesi geçici 100 mm/s²'ye çekilir     (IMPROVE_HOMING_RELIABILITY)
+1. Z, Z_HOMING_HEIGHT = 4 mm kaldırılır       (X/Y'den ÖNCE, çarpma payı)
+2. QUICK_HOME — tek çapraz hamle:
+      hedef (−450, −420) = 1.5 × max_length × yön
+      hız   22,8 mm/s    = 16,67 × √((280/300)² + 1)
+      → X ve Y endstop'larına aynı anda dayanır
+3. X ekseni (HOME_Y_BEFORE_X kapalı → X önce):
+      hızlı −450 mm @ 16,67 mm/s   (endstop zaten basılı, anında biter)
+      geri  +5 mm                   (X_HOME_BUMP_MM)
+      yavaş −10 mm @ 8,33 mm/s      (bölen 2) ← gerçek sıfır burada
+      X = X_MIN_POS = −10, sonra backoff +2 → X = −8
+4. Y ekseni: aynı şablon (hızlı hamle −420 mm) → Y = −8
+5. Z: (145, 135)'e git, 240 mm/dk ile dokun, 2 mm bump, bölen 4 → 1 mm/s
+6. İvme orijinal değerine geri yüklenir
 ```
+
+> **G28 sonrası nozul (−8, −8) konumundadır** — tabla dışında, her iki eksende
+> 8 mm. `X_MIN_POS`/`Y_MIN_POS` = −10 olduğu için bu tasarım gereğidir.
 
 ### 6.3 Z Home Offset
 

@@ -584,6 +584,31 @@
 #define QUICK_HOME                     // If homing includes X and Y, do a diagonal move initially
 #define HOMING_BACKOFF_MM { 2, 2, 2 }  // (mm) Move away from the endstops after homing
 
+/**
+ * IMPROVE_HOMING_RELIABILITY — homing süresince X/Y ivmesini geçici düşürür.
+ *
+ * G28.cpp:176 begin_slow_homing(): X/Y max_acceleration_mm_per_s2 değerlerini
+ * saklayıp 100 mm/s²'ye çeker, sonunda end_slow_homing() geri yükler.
+ * (CLASSIC_JERK kapalı — JUNCTION_DEVIATION kullanılıyor — o yüzden jerk
+ * dalı derlenmez; etkili olan tek şey ivme düşüşü.)
+ *
+ * NEDEN GEREKLI: QUICK_HOME açık. G28 X/Y'yi tek çapraz hamleyle
+ * 22,8 mm/s hızla İKİ mekanik dayanağa aynı anda sürer
+ * (= min(homing_feedrate) × √((280/300)² + 1)). Bu hamle
+ * DEFAULT_MAX_ACCELERATION ile yapılırsa 800 mm/s² ile başlar; 100 mm/s²
+ * hareket başlangıcındaki şoku ve dolayısıyla kayıp adım riskini azaltır.
+ *
+ * SD1-2.6 — TAŞINDI VE İLK KEZ ETKİN OLDU.
+ * Bu tanım SD1-1.2'den beri Configuration_adv.h'ın TMC bölümünde,
+ * `#if HAS_TRINAMIC` bloğunun İÇİNDE duruyordu. Bu kartta X/Y
+ * TMC2208_STANDALONE, Z/E0 A4988 → HAS_TRINAMIC **false** (drivers.h:80),
+ * dolayısıyla makro hiç tanımlanmıyor, G28'deki begin/end_slow_homing()
+ * çağrıları `#if` ile tamamen dışarıda kalıyordu. Ölçümle bulundu
+ * (`#pragma message` → "IMPROVE_HOMING_RELIABILITY = OFF"); yalnız
+ * `#define` satırına bakan bir denetim açık sanırdı.
+ */
+#define IMPROVE_HOMING_RELIABILITY
+
 // SD1-1.3: G28 sonu nozzle'ı Z=0'a (paper-test pozisyonu) konumla.
 // MANUAL_Z_HOME_POS=-1 ile birlikte: trigger'dan 1 mm yukarı = 1 mm gap.
 // Bu nokta kullanıcının paper-test ile doğruladığı Z=0 referansıdır.
@@ -2309,14 +2334,10 @@
     //#define HOME_USING_SPREADCYCLE
   #endif
 
-  /**
-   * SD1-1.2: IMPROVE_HOMING_RELIABILITY
-   * Homing sırasında geçici olarak X/Y accel'i 100 mm/s²'ye düşürür ve
-   * (CLASSIC_JERK varsa) jerk'i 0'a çeker. JD aktif olduğu için sadece
-   * accel düşüşü etkili — start-of-motion shock'unu azaltır.
-   * Sensorless homing gerekmez — standalone TMC2208 ile çalışır.
-   */
-  #define IMPROVE_HOMING_RELIABILITY
+  // NOT: IMPROVE_HOMING_RELIABILITY eskiden BURADAYDI (SD1-1.2). Bu blok
+  // `#if HAS_TRINAMIC` icinde oldugu ve bu kartta HAS_TRINAMIC false oldugu
+  // icin makro HIC TANIMLANMIYORDU — ayar sessizce etkisizdi. SD1-2.6'da
+  // "@section homing" altina tasindi. Ayrintı orada.
 
   /**
    * Beta feature!

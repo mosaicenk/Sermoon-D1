@@ -173,6 +173,33 @@
 
 #if ENABLED(IMPROVE_HOMING_RELIABILITY)
 
+  #if !USE_SENSORLESS
+    /**
+     * SD1-2.6: slow_homing_t upstream'de feature/tmc_util.h:375'te, UC katmanli
+     * guard altinda tanimli:  #if HAS_TRINAMIC -> #if USE_SENSORLESS ->
+     * #if ENABLED(IMPROVE_HOMING_RELIABILITY).  Ustelik o basligi G28.cpp
+     * yalnizca #if ENABLED(SENSORLESS_HOMING) ile include ediyor.
+     *
+     * Yani upstream bu ozelligi sensorless homing'e BAGLAMIS. Oysa yaptigi
+     * tek sey planner'in X/Y ivmesini gecici dusurmek (asagidaki iki
+     * fonksiyon) — sensorless ile hicbir ilgisi yok, stallguard'a dokunmuyor.
+     *
+     * Bu kartta X/Y TMC2208_STANDALONE, Z/E0 A4988 => HAS_TRINAMIC false,
+     * USE_SENSORLESS false. Tip erisilemez oldugundan makroyu tanimlamak
+     * tek basina derleme hatasi verir (olculdu: 'slow_homing_t' does not
+     * name a type). Tip bu yuzden burada, sensorless'tan bagimsiz tanimlanir.
+     *
+     * USE_SENSORLESS true olan bir yapilandirmaya gecilirse tanim tmc_util.h'
+     * tan gelir ve bu blok devre disi kalir — cift tanim olusmaz.
+     */
+    struct slow_homing_t {
+      xy_ulong_t acceleration;
+      #if HAS_CLASSIC_JERK
+        xy_float_t jerk_xy;
+      #endif
+    };
+  #endif
+
   slow_homing_t begin_slow_homing() {
     slow_homing_t slow_homing{0};
     slow_homing.acceleration.set(planner.settings.max_acceleration_mm_per_s2[X_AXIS],

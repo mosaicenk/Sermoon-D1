@@ -8,6 +8,71 @@ Versiyonlama: Sermoon-D1-X.Y[-suffix] (X = major iyileştirme, Y = minor)
 
 ---
 
+## [Sermoon-D1-2.6] — 2026-07-27
+
+X/Y homing denetimi. `IMPROVE_HOMING_RELIABILITY` **SD1-1.2'den beri hiç
+derlenmiyordu**; etkinleştirildi. Flash +64 byte (127.112 → **127.176**,
+%24,2 → %24,3), RAM değişmedi (13.176). Binary değişti → **yeniden flash
+gerekir** (SHA256 `445D2E5A…2037`, 2026-07-27 derlemesi).
+
+### Fixed
+
+- **`IMPROVE_HOMING_RELIABILITY` etkisizdi — X/Y homing tam ivmeyle
+  çalışıyordu.** Tanım `Configuration_adv.h`'ın TMC bölümünde,
+  `#if HAS_TRINAMIC` bloğunun (2029–2346) **içinde** duruyordu. Bu kartta
+  X/Y `TMC2208_STANDALONE`, Z/E0 `A4988` → `HAS_TRINAMIC` **false**
+  (`drivers.h:80`), dolayısıyla makro hiç tanımlanmıyor ve `G28.cpp`'deki
+  `begin_slow_homing()` / `end_slow_homing()` çağrılarının tamamı `#if` ile
+  dışarıda kalıyordu.
+  - **Nasıl bulundu:** `#pragma message` ölçümü →
+    `IMPROVE_HOMING_RELIABILITY = OFF`. Yalnız `#define` satırına bakan bir
+    denetim ayarı açık sanırdı — 2.4'teki DIR delay hatasıyla aynı desen.
+  - **Etkisi:** homing sırasında X/Y ivmesi 100 mm/s²'ye düşmesi gerekirken
+    `DEFAULT_MAX_ACCELERATION` = **800 mm/s²**'de kalıyordu. `QUICK_HOME`
+    açık olduğu için G28, X/Y'yi tek çapraz hamleyle **22,8 mm/s** hızla
+    iki mekanik dayanağa aynı anda sürüyor
+    (`min(homing_feedrate) × √((280/300)² + 1)`); bu ayarın var oluş sebebi
+    tam olarak o hamlenin başlangıç şokunu azaltmaktı.
+  - `CLASSIC_JERK` kapalı (JUNCTION_DEVIATION kullanılıyor) → ölçüldü:
+    `HAS_CLASSIC_JERK = FALSE`. Yani jerk dalı derlenmiyor, etkili olan tek
+    şey ivme düşüşü. Yorumdaki bu iddia doğruydu.
+
+- **`slow_homing_t` tipi erişilemezdi — makroyu taşımak tek başına yetmedi.**
+  Upstream bu tipi `feature/tmc_util.h:375`'te ÜÇ katmanlı guard altında
+  tanımlıyor (`HAS_TRINAMIC` → `USE_SENSORLESS` →
+  `ENABLED(IMPROVE_HOMING_RELIABILITY)`) ve `G28.cpp` o başlığı yalnızca
+  `#if ENABLED(SENSORLESS_HOMING)` ile include ediyor. Yani upstream, sadece
+  planner ivmesini değiştiren bu özelliği **sensorless homing'e bağlamış**.
+  - Ölçüldü: makro taşındıktan sonra derleme
+    `'slow_homing_t' does not name a type` ile durdu. İlk teşhis ("tek satır
+    taşınacak") bu yüzden yanlıştı.
+  - Çözüm: tip `G28.cpp`'de `#if !USE_SENSORLESS` altında tanımlandı.
+    `USE_SENSORLESS` true olan bir yapılandırmaya geçilirse tanım yine
+    `tmc_util.h`'tan gelir, çift tanım oluşmaz.
+  - `USE_SENSORLESS = FALSE` ölçümle teyit edildi.
+
+### Changed
+
+- `Configuration_adv.h`: `IMPROVE_HOMING_RELIABILITY` TMC bölümünden
+  `@section homing` altına taşındı (`HOMING_BACKOFF_MM`'in yanına). Eski
+  konumuna neden orada olmaması gerektiğini açıklayan bir not bırakıldı.
+
+### Doğrulama
+
+| Adım | Sonuç |
+|---|---|
+| `#pragma message` — taşımadan önce | `IMPROVE_HOMING_RELIABILITY = OFF` |
+| Yalnız `#define` taşındı, derleme | **FAILED** — `slow_homing_t` tanımsız |
+| Tip `G28.cpp`'ye eklendi, derleme | SUCCESS |
+| `#pragma message` — sonra | `= ON`, `HAS_CLASSIC_JERK = FALSE`, `USE_SENSORLESS = FALSE` |
+| Temiz derleme | 127.176 B / 13.176 B, uyarı: proje kodunda 0 |
+
+> **Donanımda doğrulanmadı.** Değişiklik yalnız G28 süresince planner
+> ivmesini etkiler; hesapla eklenen süre saniyenin altında (kısa bump/backoff
+> hamleleri baskın). Gerçek homing süresi ve tekrarlanabilirlik ölçülmedi.
+
+---
+
 ## [Sermoon-D1-2.5] — 2026-07-27
 
 Sürüm kimliği ve build bütünlüğü. **Marlin mantığı değişmedi.** Flash −8 byte
