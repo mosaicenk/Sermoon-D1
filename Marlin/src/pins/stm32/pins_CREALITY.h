@@ -78,6 +78,16 @@
 //
 // Steppers
 //
+// DIKKAT — TEK ENABLE HATTI: dort surucunun de EN girisi PC3'e baglidir.
+// Marlin bu pini eksen bazinda saymaz; disable_Z() cagrisi PC3'u pasife
+// cekerek X/Y/E0'i de birakir. Pratikte sorun cikarmaz cunku eksenler yalnizca
+// hepsi birden bosta kalinca (DEFAULT_STEPPER_DEACTIVE_TIME + tum
+// DISABLE_INACTIVE_* true) kapatilir. Sonucu olan iki kisit:
+//   1. Tek bir ekseni isinma nedeniyle bagimsiz kapatmak MUMKUN DEGIL.
+//      HR4988SQ'nun (Z/E0) isisi baski sirasinda yazilimla azaltilamaz;
+//      cozum donanimsal sogutma.
+//   2. Configuration.h'daki DISABLE_X/Y/Z/E hepsi false kalmalidir;
+//      birini true yapmak digerlerini de dusurur.
 #define X_ENABLE_PIN       PC3
 #define X_STEP_PIN         PC2
 #define X_DIR_PIN          PB9
@@ -86,19 +96,32 @@
 #define Y_STEP_PIN         PB8
 #define Y_DIR_PIN          PB7
 
+// Z: bu TEK STEP/DIR/EN setine PARALEL iki motor baglidir (ikinci surucu YOK).
+// Bu yuzden Z2_* pin tanimlari ve Z2_DRIVER_TYPE bilerek tanimsiz birakildi.
 #define Z_ENABLE_PIN       PC3
 #define Z_STEP_PIN         PB6
 #define Z_DIR_PIN          PB5
 
+// E0 STEP/DIR = PB4/PB3 = JTAG hatti. Asagidaki DISABLE_DEBUG olmadan bu
+// pinler GPIO'ya donmez ve ekstruder hic hareket etmez.
 #define E0_ENABLE_PIN      PC3
 #define E0_STEP_PIN        PB4
 #define E0_DIR_PIN         PB3
 
 //
-// Surucu tipi: TMC2208 STANDALONE (Configuration.h *_DRIVER_TYPE).
-// Standalone = sadece STEP/DIR/EN; firmware surucuyle KONUSMAZ. UART yok,
-// bu yuzden M906 (akim), M569 (chop modu) ve sensorless homing kullanilamaz;
-// akim ayari surucu uzerindeki potansiyometreyle yapilir.
+// Surucu tipleri (Configuration.h *_DRIVER_TYPE) — KARMA:
+//   X, Y  : TMC2208_STANDALONE
+//   Z, E0 : A4988 — fiziksel cip HR4988SQ. Marlin'de HR4988 tipi yok; A4988
+//           donanim uyumlu esdegeridir (ayni STEP/DIR/EN, ayni zamanlama).
+//           Gerekce ve global yan etkileri Configuration.h'da yazili.
+//
+// Ikisi de STANDALONE calisir: sadece STEP/DIR/EN; firmware surucuyle
+// KONUSMAZ. UART yok, bu yuzden M906 (akim), M569 (chop modu), M350
+// (mikroadim) ve sensorless homing kullanilamaz. Hem akim (Vref potu) hem
+// mikroadim (MS1/MS2, PCB'de sabit kablanmis — jumper yok) DONANIMDAN ayarlanir.
+//
+// Z'nin Vref'i ozel dikkat ister: iki motor paralel oldugu icin surucunun
+// verdigi akim ikiye bolunur.
 //
 // Buradaki eski *_HARDWARE_SERIAL / *_SERIAL_*_PIN tanimlari HAS_TMC220x
 // bloğunun icindeydi; standalone'da o makro false oldugu icin hicbir zaman
@@ -107,7 +130,9 @@
 //
 
 //
-// Release PB4 (Y_ENABLE_PIN) from JTAG NRST role
+// JTAG pinlerini GPIO'ya cevir. PB3 (JTDO) ve PB4 (JNTRST) E0_DIR/E0_STEP
+// olarak kullaniliyor; bu tanim olmadan ekstruder calismaz.
+// NOT: eski yorum "PB4 (Y_ENABLE_PIN)" diyordu — yanlisti, Y_ENABLE PC3'tur.
 //
 #define DISABLE_DEBUG
 

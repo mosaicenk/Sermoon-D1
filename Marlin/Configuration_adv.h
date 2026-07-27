@@ -846,11 +846,21 @@
  * vibration and surface artifacts. The algorithm adapts to provide the best possible step smoothing at the
  * lowest stepping frequencies.
  */
-// Sermoon D1: TMC2208 standalone modunda hardware microstep 16x + 256x
-// dahili interpolasyon ile sabit. Yüksek hızlarda (>10kHz step) Marlin
-// internal smoothing yapar. Düşük/orta hızlarda step jitter oluşabilir;
-// ADAPTIVE_STEP_SMOOTHING bu aralıkta efektif step rate'i ikiye katlayıp
-// daha yumuşak bir hareket sağlar (motor "daha çok mikroadım" gibi davranır).
+// Sermoon D1: karma sürücüde bu ayar artık YÜK TAŞIYOR, kozmetik değil.
+//   X/Y (TMC2208 standalone): 16x giriş, çip içinde 256x'e interpole edilir.
+//                             Donanım zaten pürüzsüz.
+//   Z/E0 (HR4988SQ)         : interpolasyon YOK. 16x gerçekten 16x.
+// Yani düşük/orta step frekanslarında Z ve E'nin adım basamakları duyulur
+// hale gelir — Z'de paralel iki motor olduğu için titreşim daha da belirgin.
+// ADAPTIVE_STEP_SMOOTHING bu aralıkta efektif step rate'i ikiye katlayarak
+// aradaki farkı kapatır. HR4988SQ'ya geçtikten sonra kapatılmamalıdır.
+//
+// UYARI: Configuration_adv.h'daki INTERPOLATE / *_MICROSTEPS / *_CURRENT
+// tanımları `#if HAS_TRINAMIC` bloğunun içindedir ve bu kartta HİÇ
+// DERLENMEZ (drivers.h:80 — "Does not match standalone configurations").
+// Sürücüler karta lehimli, ayrı jumper'lı modül yok (2026-07-24 board fotoğrafıyla
+// doğrulandı). Mikroadım her iki sürücü ailesinde de PCB üzerinde sabit
+// kablanmıştır; yazılımdan değiştirilemez.
 #define ADAPTIVE_STEP_SMOOTHING
 
 /**
@@ -1457,8 +1467,24 @@
 #define LIN_ADVANCE
 #if ENABLED(LIN_ADVANCE)
   //#define EXTRA_LIN_ADVANCE_K // Enable for second linear advance constants
+  // K SÜRÜCÜYE ÖZGÜDÜR — E0 HR4988SQ'ya geçtiği için mevcut değer geçersizdir.
+  // K, ekstruder motorunun komut edilen akışa ne kadar geciktiğini telafi eder;
+  // bu gecikme sürücünün akım regülasyonuna bağlıdır. TMC2208'in stealthChop'u
+  // ile HR4988SQ'nun sabit-kapalı-zaman (constant off-time) chopper'ı aynı
+  // basamak tepkisini vermez.
+  //
+  // Bu yazıcı DIRECT DRIVE (dişlisiz MK8 tipi; kullanıcı donanım doğrulaması
+  // 2026-07-24). E steps/mm = 95 dişlisiz MK8 besleyicinin değeridir ve
+  // besleyicinin konumunu kanıtlamaz (dişlili direct drive ~400-450 olurdu) —
+  // önceki "95 → Bowden" çıkarımı bu yüzden hatalıydı.
+  // Direct drive'da tipik K 0.02-0.15; 0.06 makul bir başlangıçtır.
+  // Yine de kalibre edilmemiş sayılır: TMC2208 için denenmişti, E'deki sürücü
+  // artık HR4988SQ.
+  //
+  // İLK BASKIDAN ÖNCE KALİBRE ET: docs/lin_advance/ veya
+  // https://marlinfw.org/tools/lin_advance/k-factor.html
+  // 0.0-0.3 aralığını 0.02 adımla tara, M900 K<değer> ile canlı dene, M500 ile yaz.
   #define LIN_ADVANCE_K 0.06    // Unit: mm compression per 1mm/s extruder speed
-                                // Direkt drive başlangıç değeri — kalibre et: https://marlinfw.org/tools/lin_advance/k-factor.html
   //#define LA_DEBUG            // If enabled, this will generate debug information output over USB.
 #endif
 
@@ -1577,8 +1603,26 @@
  *
  * Override the default value based on the driver type set in Configuration.h.
  */
-#define MINIMUM_STEPPER_POST_DIR_DELAY 30
-#define MINIMUM_STEPPER_PRE_DIR_DELAY 30
+// Sermoon D1: karma sürücüde EN KATI gereksinim geçerlidir (bu makro global,
+// eksen başına ayarlanamaz).
+//   TMC2208 (X/Y)  :  20 ns
+//   HR4988SQ (Z/E0): 200 ns  ← belirleyici (A4988 ailesi DIR setup/hold)
+//
+// ÖNCEKİ DEĞER 30 ns İDİ ve HR4988SQ için YETERSİZDİ. Bu bir konfor ayarı
+// değil, doğruluk ayarıdır: DIR pini STEP kenarından yeterince önce kararlı
+// değilse sürücü adımı ESKİ yönde atar. Etkilenen yollar tam da yön
+// değişiminin sık olduğu yerlerdir — Z'de katman geçişi (üstelik paralel iki
+// motor aynı anda yanlış yöne gider) ve E'de her retract/LIN_ADVANCE geri
+// beslemesi. Belirtisi: katman kaymasi, retract sonrası tutarsız akış.
+//
+// Maliyeti ihmal edilebilir: 72 MHz'de 200 ns ≈ 15 çevrim, yalnızca yön
+// DEĞİŞTİĞİNDE ödenir (her adımda değil).
+//
+// Not: bu satırlar tanımlı olduğu için Conditionals_post.h'daki otomatik
+// A4988 dalı (satır 572, 200 ns) devreye GİRMEZ — degeri burada elle vermek
+// zorundayiz. Sürücü tipi değişirse burası da gözden geçirilmelidir.
+#define MINIMUM_STEPPER_POST_DIR_DELAY 200
+#define MINIMUM_STEPPER_PRE_DIR_DELAY 200
 
 /**
  * Minimum stepper driver pulse width (in µs)
@@ -1591,12 +1635,17 @@
  *
  * Override the default value based on the driver type set in Configuration.h.
  */
-// Sermoon D1: TMC2208 minimum step pulse. Marlin SanityCheck LIN_ADVANCE +
-// TMC2208 standalone E için MINIMUM_STEPPER_PULSE >= 1 zorunlu kılar (0
-// değeri ile compile-time hata). TMC2208 internal synchronizer bunu rahat
-// kaldırır (veri sheet min 100ns tipik; 1µs step pulse ile sorunsuz).
-// ADAPTIVE_STEP_SMOOTHING + INTERPOLATE=256x hâlâ aktif, ultra-smooth
-// microstepping etkilenmez.
+// Sermoon D1: karma sürücü (X/Y TMC2208 standalone, Z/E0 HR4988SQ). Bu değer
+// eksen bazında değil, kart genelinde tektir → tüm sürücülerin en katı
+// gereksinimi alınmalıdır.
+//   HR4988SQ (A4988 uyumlu) : min 1 µs STEP darbesi — belirleyici kısıt.
+//   TMC2208 standalone      : ~100 ns yeterli, 1 µs zararsız fazlalık.
+// Ayrıca SanityCheck.h:2564 LIN_ADVANCE ile birlikte >= 1 zorunlu kılar
+// (0 değerinde derleme hatası). Yani 1 hem donanımın hem SanityCheck'in
+// gereği; düşürülemez.
+//
+// NOT: Marlin bu değeri tanımlamasaydık Conditionals_post.h:592'deki A4988
+// dalından yine 1 alırdı. Açık bırakılıyor ki gerekçe okunabilsin.
 #define MINIMUM_STEPPER_PULSE 1
 
 /**
@@ -1611,7 +1660,18 @@
  *
  * Override the default value based on the driver type set in Configuration.h.
  */
-// Sermoon D1: TMC2208 max 400kHz step rate destekler.
+// Sermoon D1: karma sürücüde EN DÜŞÜK tavan geçerlidir.
+//   TMC2208 (X/Y) : 400 kHz  ← belirleyici
+//   HR4988SQ (Z/E): 500 kHz
+// Bu makro global olduğu için 400000'de kalır; 500000'e çıkarmak X/Y'yi
+// sürücü sınırının üstüne iter. Pratikte bağlayıcı değil: en hızlı eksen
+// X/Y, 250 mm/s × 80 step/mm = 20 kHz — tavanın %5'i.
+//
+// Ayrıca stepper.h:160'ta bu değer darbe TABANINI da belirler:
+//   _MIN_STEPPER_PULSE_CYCLES = max(F_CPU/MAXIMUM_STEPPER_RATE, (F_CPU/500000)*N)
+//   72 MHz / 400000 = 180 çevrim (2,5 µs)  vs  (72/0,5)*1 = 144 çevrim (2,0 µs)
+// → 180 çevrim kazanır. Yani gerçek darbe genişliği 2,5 µs; HR4988SQ'nun
+// istediği 1 µs'nin rahatça üstünde.
 #define MAXIMUM_STEPPER_RATE 400000
 
 // @section temperature
@@ -1937,6 +1997,35 @@
  * TMCStepper library is required to use TMC stepper drivers.
  * https://github.com/teemuatlut/TMCStepper
  */
+// ###########################################################################
+// # SERMOON D1 — AŞAĞIDAKİ BLOĞUN TAMAMI BU KARTTA DERLENMEZ.               #
+// #                                                                          #
+// # HAS_TRINAMIC yalnızca UART/SPI ile YAPILANDIRILABİLİR TMC sürücüler için #
+// # true olur. drivers.h:80 bunu acikca soyluyor:                            #
+// #     "Test for supported TMC drivers that require advanced configuration   #
+// #      — Does not match standalone configurations"                          #
+// # Bu kartta X/Y = TMC2208_STANDALONE, Z/E0 = A4988 (HR4988SQ).             #
+// # Hicbiri eslesmiyor → HAS_TRINAMIC = false → blok #if ile disarida kalir. #
+// #                                                                          #
+// # SONUC: buradaki *_CURRENT, *_MICROSTEPS, *_RSENSE, INTERPOLATE,          #
+// # STEALTHCHOP_*, HYBRID_THRESHOLD, CHOPPER_TIMING, MONITOR_DRIVER_STATUS   #
+// # degerlerinin HICBIRI calismaz. Degistirmek davranisi ETKILEMEZ.          #
+// #                                                                          #
+// # Gercek donanim ayarlari (dogrulanmis, 2026-07-23):                       #
+// #   Akim   : Vref potuyla. X/Y 1.27 V, Z 1.60 V, E0 0.86 V.                #
+// #            R_sense = 0.15 ohm (R150), tum surucular, sarim basina 2 adet.#
+// #            Karsiligi: X/Y 0.69 A RMS, Z 0.47 A/motor, E0 0.51 A RMS.     #
+// #            Motorlar Creality 42-40 (~1.0 A nominal) → %47-69 arasi.      #
+// #   Mikroadim: surucu karta lehimli, jumper YOK (board fotografiyla         #
+// #              dogrulandi, 2026-07-24). MS1/MS2 PCB'de sabit kablanmis,    #
+// #              MCU'ya bagli degil, 16x → M350 de calismaz.                 #
+// #   256x interpolasyon: yalnizca X/Y'de ve TMC2208'in KENDI donanim        #
+// #                       ozelligi olarak. Asagidaki INTERPOLATE ile ilgisi  #
+// #                       yok. Z/E0'daki HR4988SQ interpolasyon yapmaz.      #
+// #                                                                          #
+// # Blok, ileride UART'li bir surucuye gecilirse baslangic noktasi olsun     #
+// # diye korunuyor. O gun gelirse degerler gozden gecirilmelidir.            #
+// ###########################################################################
 #if HAS_TRINAMIC
 
   #define HOLD_MULTIPLIER    0.5  // Scales down the holding current from run current
@@ -1946,7 +2035,7 @@
     #define X_CURRENT       800        // (mA) RMS current. Multiply by 1.414 for peak current.
     #define X_CURRENT_HOME  X_CURRENT  // (mA) RMS current for sensorless homing
     #define X_MICROSTEPS     16    // 0..256
-    #define X_RSENSE          0.11
+    #define X_RSENSE          0.15
     #define X_CHAIN_POS      -1    // <=0 : Not chained. 1 : MCU MOSI connected. 2 : Next in chain, ...
   #endif
 
@@ -1954,7 +2043,7 @@
     #define X2_CURRENT      800
     #define X2_CURRENT_HOME X2_CURRENT
     #define X2_MICROSTEPS    16
-    #define X2_RSENSE         0.11
+    #define X2_RSENSE         0.15
     #define X2_CHAIN_POS     -1
   #endif
 
@@ -1962,7 +2051,7 @@
     #define Y_CURRENT       800
     #define Y_CURRENT_HOME  Y_CURRENT
     #define Y_MICROSTEPS     16
-    #define Y_RSENSE          0.11
+    #define Y_RSENSE          0.15
     #define Y_CHAIN_POS      -1
   #endif
 
@@ -1970,7 +2059,7 @@
     #define Y2_CURRENT      800
     #define Y2_CURRENT_HOME Y2_CURRENT
     #define Y2_MICROSTEPS    16
-    #define Y2_RSENSE         0.11
+    #define Y2_RSENSE         0.15
     #define Y2_CHAIN_POS     -1
   #endif
 
@@ -1978,7 +2067,7 @@
     #define Z_CURRENT       800
     #define Z_CURRENT_HOME  Z_CURRENT
     #define Z_MICROSTEPS     16
-    #define Z_RSENSE          0.11
+    #define Z_RSENSE          0.15
     #define Z_CHAIN_POS      -1
   #endif
 
@@ -1986,7 +2075,7 @@
     #define Z2_CURRENT      800
     #define Z2_CURRENT_HOME Z2_CURRENT
     #define Z2_MICROSTEPS    16
-    #define Z2_RSENSE         0.11
+    #define Z2_RSENSE         0.15
     #define Z2_CHAIN_POS     -1
   #endif
 
@@ -1994,49 +2083,49 @@
     #define Z3_CURRENT      800
     #define Z3_CURRENT_HOME Z3_CURRENT
     #define Z3_MICROSTEPS    16
-    #define Z3_RSENSE         0.11
+    #define Z3_RSENSE         0.15
     #define Z3_CHAIN_POS     -1
   #endif
 
   #if AXIS_IS_TMC(E0)
     #define E0_CURRENT      800
     #define E0_MICROSTEPS    16
-    #define E0_RSENSE         0.11
+    #define E0_RSENSE         0.15
     #define E0_CHAIN_POS     -1
   #endif
 
   #if AXIS_IS_TMC(E1)
     #define E1_CURRENT      800
     #define E1_MICROSTEPS    16
-    #define E1_RSENSE         0.11
+    #define E1_RSENSE         0.15
     #define E1_CHAIN_POS     -1
   #endif
 
   #if AXIS_IS_TMC(E2)
     #define E2_CURRENT      800
     #define E2_MICROSTEPS    16
-    #define E2_RSENSE         0.11
+    #define E2_RSENSE         0.15
     #define E2_CHAIN_POS     -1
   #endif
 
   #if AXIS_IS_TMC(E3)
     #define E3_CURRENT      800
     #define E3_MICROSTEPS    16
-    #define E3_RSENSE         0.11
+    #define E3_RSENSE         0.15
     #define E3_CHAIN_POS     -1
   #endif
 
   #if AXIS_IS_TMC(E4)
     #define E4_CURRENT      800
     #define E4_MICROSTEPS    16
-    #define E4_RSENSE         0.11
+    #define E4_RSENSE         0.15
     #define E4_CHAIN_POS     -1
   #endif
 
   #if AXIS_IS_TMC(E5)
     #define E5_CURRENT      800
     #define E5_MICROSTEPS    16
-    #define E5_RSENSE         0.11
+    #define E5_RSENSE         0.15
     #define E5_CHAIN_POS     -1
   #endif
 
@@ -2125,10 +2214,13 @@
    * Define you own with
    * { <off_time[1..15]>, <hysteresis_end[-3..12]>, hysteresis_start[1..8] }
    */
-  // Sermoon D1: 24V PSU — CHOPPER_DEFAULT_24V reduces mid-range resonance
-// on TMC2208. Standalone modda UART olmadan chopper register yazılmaz,
-// ama HAS_TRINAMIC aktif olduğu için bu değer TMCStepper init sırasında kullanılır.
-#define CHOPPER_TIMING CHOPPER_DEFAULT_24V
+  // Sermoon D1: 24V PSU. ESKI YORUM YANLISTI — "HAS_TRINAMIC aktif oldugu icin
+  // bu deger TMCStepper init sirasinda kullanilir" diyordu; HAS_TRINAMIC bu
+  // kartta FALSE (bkz. blok basindaki aciklama), TMCStepper hic linklenmiyor.
+  // Chopper zamanlamasi her iki surucude de cipin kendi donanim varsayilanidir:
+  // TMC2208 stealthChop/spreadCycle otomatik, HR4988SQ sabit-kapali-zaman.
+  // Yazilimdan degistirilemez.
+  #define CHOPPER_TIMING CHOPPER_DEFAULT_24V
 
   /**
    * Monitor Trinamic drivers for error conditions,
@@ -2615,14 +2707,19 @@
  * sürekli HIGH). Manuel kontrol için M888 gcode kullanılabilir.
  */
 #define SERMOON_Z_LOCK
-#if ENABLED(SERMOON_Z_LOCK)
-  /**
-   * AUTO mod: Z hareket başlamadan önce lock release, hareket bitince
-   * tekrar engage. EXPERIMENTAL — donanım davranışı tam doğrulanmadan
-   * default OFF tutuluyor. Test için manuel açın.
-   */
-  //#define SERMOON_Z_LOCK_AUTO
-#endif
+
+/**
+ * KALDIRILDI — SERMOON_Z_LOCK_AUTO (Z hareketinde otomatik release/engage).
+ *
+ * Bu flag hiçbir zaman çalışmıyordu: on_motion_start()/on_motion_end()
+ * tanımlıydı ama kod tabanında hiçbir yerden çağrılmıyordu (planner/stepper
+ * tarafına hook hiç yazılmamıştı). Açmak davranışı değiştirmiyordu.
+ *
+ * Yeniden yazılacaksa önce şu ölçülmeli: lock LOW iken gantry elle
+ * itilebiliyor mu? Eğer engage durumu Z hareketini zaten engellemiyorsa
+ * (mevcut kanıt bu yönde — lock sürekli HIGH ve yazıcı normal çalışıyor)
+ * auto mod gereksizdir. Manuel kontrol için M888 yeterli.
+ */
 
 /**
  * Include capabilities in M115 output

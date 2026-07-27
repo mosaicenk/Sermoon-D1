@@ -636,17 +636,65 @@
  *          TMC5130, TMC5130_STANDALONE, TMC5160, TMC5160_STANDALONE
  * :['A4988', 'A5984', 'DRV8825', 'LV8729', 'L6470', 'TB6560', 'TB6600', 'TMC2100', 'TMC2130', 'TMC2130_STANDALONE', 'TMC2160', 'TMC2160_STANDALONE', 'TMC2208', 'TMC2208_STANDALONE', 'TMC2209', 'TMC2209_STANDALONE', 'TMC26X', 'TMC26X_STANDALONE', 'TMC2660', 'TMC2660_STANDALONE', 'TMC5130', 'TMC5130_STANDALONE', 'TMC5160', 'TMC5160_STANDALONE']
  */
-// Sermoon D1: TMC2208 standalone (no UART/SPI). _STANDALONE suffix is required —
-// it enables TMC-optimized step timing, ADAPTIVE_STEP_SMOOTHING integration,
-// and correct MINIMUM_STEPPER_PULSE/MAXIMUM_STEPPER_RATE without UART attempts.
+// Sermoon D1 — KARMA sürücü yapılandırması:
+//   X, Y  : TMC2208 standalone
+//   Z, E0 : HR4988SQ
+//
+// HR4988SQ neden A4988 olarak tanımlanıyor: Marlin'de HR4988 diye bir sürücü
+// tipi yok. HR4988SQ, A4988'in donanım uyumlu klonudur — aynı STEP/DIR/EN
+// arayüzü, aynı MS1/MS2/MS3 mikroadım seçimi, aynı zamanlama sınırları
+// (min 1 µs step darbesi, min 200 ns DIR setup). Marlin'in A4988 tipi bu
+// zamanlamaları doğru üretir; başka bir tip seçmek yanlış darbe genişliği
+// demek olur. Sürücü tipi Marlin'de yalnızca zamanlama + yetenek makrolarını
+// belirler, çipe veri gönderilmez (ikisi de standalone).
+//
+// _STANDALONE son eki (X/Y): firmware sürücüyle KONUŞMAZ. HAS_TRINAMIC false
+// kalır → M906/M569/M122/M350 ve sensorless homing yok, akım potansiyometreyle
+// ayarlanır. HR4988SQ için de aynı — akım Vref potuyla ayarlanır.
+//
+// KARMA YAPILANDIRMANIN İKİ GLOBAL YAN ETKİSİ (Marlin bu makroları eksen
+// bazında değil, kart genelinde tek değer olarak üretir):
+//
+//   1. MINIMUM_STEPPER_POST_DIR_DELAY: Conditionals_post.h'da A4988 dalı
+//      (satır 572) TRINAMICS dalından (574) ÖNCE gelir. Tabloda A4988 varken
+//      değer 20 ns → 200 ns olur ve TÜM eksenlere uygulanır. Bu doğrudur:
+//      HR4988SQ 200 ns DIR setup ister, TMC2208 için 200 ns zararsız fazlalık
+//      (yön değişimi başına 180 ns ek, pratikte ölçülemez).
+//   2. MINIMUM_STEPPER_PULSE / MAXIMUM_STEPPER_RATE: ikisi de
+//      Configuration_adv.h'da AÇIKÇA tanımlı (1 / 400000), o yüzden bu
+//      otomatik dallar devreye girmez. Gerekçe orada yazılı.
+//
+// HR4988SQ'da 256x interpolasyon YOKTUR. TMC2208 standalone modda 16x girişi
+// içeride 256'ya interpole eder; HR4988SQ'da 16x gerçekten 16x'tir. Z ve E
+// bu yüzden daha sesli çalışır. Telafi: ADAPTIVE_STEP_SMOOTHING açık
+// (Configuration_adv.h) — düşük step frekanslarında efektif çözünürlüğü
+// artırır. Sürücüler karta lehimli (ayrı modül değil); mikroadım jumper değil,
+// PCB üzerinde sabit kablanmış (MS pinleri MCU'ya da bağlı değil), 16x
+// varsayılır: DEFAULT_AXIS_STEPS_PER_UNIT Z=400 ve E=95 bu varsayıma dayanır.
+// Farklı bir mikroadımda üretilmiş bir kart kullanılıyorsa steps/mm aynı
+// oranda değişmelidir.
 #define X_DRIVER_TYPE  TMC2208_STANDALONE
 #define Y_DRIVER_TYPE  TMC2208_STANDALONE
-#define Z_DRIVER_TYPE  TMC2208_STANDALONE
+// Z: TEK sürücüye PARALEL bağlı İKİ motor. Marlin tarafında bu tek eksen /
+// tek sürücüdür — Z2_DRIVER_TYPE kapalı kalmalı (o, ikinci bir STEP/DIR/EN
+// seti olan bağımsız sürücü demektir; burada öyle bir donanım yok).
+// Paralel bağlantı sürücü açısından kritiktir: iki sarım paralel olduğu için
+// eşdeğer empedans yarıya iner ve sürücünün verdiği akım iki motora BÖLÜNÜR.
+// Motor başına aynı torku almak için Vref, tek motorlu kuruluma göre iki kat
+// akma karşılık gelecek şekilde ayarlanmalıdır. HR4988SQ bu noktada TMC2208'e
+// göre belirgin daha çok ısınır — soğutma şart, ayrıntı README'de.
+#define Z_DRIVER_TYPE  A4988
 //#define X2_DRIVER_TYPE A4988
 //#define Y2_DRIVER_TYPE A4988
 //#define Z2_DRIVER_TYPE A4988
 //#define Z3_DRIVER_TYPE A4988
-#define E0_DRIVER_TYPE TMC2208_STANDALONE
+// E0: HR4988SQ. STEP/DIR pinleri (PB4/PB3) JTAG hattıdır; DISABLE_DEBUG
+// (pins_CREALITY.h) onları GPIO'ya çevirir — o tanım kaldırılırsa ekstruder
+// susar. LIN_ADVANCE açık olduğu için E sürücüsünün darbe zamanlaması
+// kritik: MINIMUM_STEPPER_PULSE 1 zorunlu (SanityCheck.h:2564).
+// LIN_ADVANCE_K sürücüye özgüdür ve YENİDEN KALİBRE EDİLMELİDİR — bkz.
+// Configuration_adv.h ve docs/lin_advance/.
+#define E0_DRIVER_TYPE A4988
 //#define E1_DRIVER_TYPE A4988
 //#define E2_DRIVER_TYPE A4988
 //#define E3_DRIVER_TYPE A4988

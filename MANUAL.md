@@ -5,7 +5,15 @@
 **Board:** Creality V4.3.1 (STM32F103RET6, 72 MHz, 512KB Flash, 64KB RAM)  
 **Ekran:** DWIN T5L (LCD_RTS protokolü)  
 **Tabla:** 290 × 270 mm, Alüminyum plaka, 320 mm Z travel  
-**Tarih:** 2026-05-23  
+**Sürücüler:** Karma — X/Y TMC2208 standalone, Z/E0 HR4988SQ  
+**Tarih:** 2026-07-23 (SD1-2.4)  
+
+> **2026-07-23 denetimi.** Bu kılavuzun sürücü/akım bölümleri ölçülmüş
+> donanım verisiyle yeniden yazıldı. Özellikle **§8 tamamen değişti**: eski
+> hâli `#if HAS_TRINAMIC` bloğundaki ayarları (StealthChop, HYBRID_THRESHOLD,
+> INTERPOLATE) etkinmiş gibi anlatıyordu — bu blok bu kartta **hiç
+> derlenmiyor**. Eski §8'e dayanarak yapılmış hiçbir ayar davranışı
+> değiştirmemiştir.
 
 ---
 
@@ -18,7 +26,7 @@
 5. [Step ve Hareket Ayarları](#5-step-ve-hareket-ayarları)
 6. [Homing Yapılandırması](#6-homing-yapılandırması)
 7. [Hareket Algoritmaları](#7-hareket-algoritmaları)
-8. [TMC2208 Sürücü Ayarları](#8-tmc2208-sürücü-ayarları)
+8. [Sürücü Ayarları (karma: TMC2208 + HR4988SQ)](#8-sürücü-ayarları-karma-tmc2208--hr4988sq)
 9. [Linear Advance (LIN_ADVANCE)](#9-linear-advance-lin_advance)
 10. [Z-Probe ve Auto Bed Leveling (ABL)](#10-z-probe-ve-auto-bed-leveling-abl)
 11. [Sıcaklık ve Güvenlik](#11-sıcaklık-ve-güvenlik)
@@ -41,8 +49,10 @@ Bu firmware, Creality'nin orijinal Sermoon D1 V1.1.10 yazılımı üzerine Marli
 | Versiyon string | Creality V1.1.10 | MarlinV2 by CTK | Tanımlayıcı |
 | DWIN databuf | 26 byte | 40 byte | Taşma düzeltmesi |
 | HOMING_FEEDRATE_XY | 3000 mm/m | 1000 mm/m | Daha yumuşak homing |
-| LIN_ADVANCE_K | 0.22 (bowden) | 0.06 (bowden) | Bowden extruder için kullanıcı kalibrasyonu gerekli |
-| HYBRID_THRESHOLD | Kapalı | Açık (X/Y:100, Z:3, E:30) | StealthChop→SpreadCycle otomatik geçiş |
+| LIN_ADVANCE_K | 0.22 | 0.06 | Direct drive — **kalibrasyon zorunlu**, SD1-2.4'te E0 sürücüsü değişti |
+| ~~HYBRID_THRESHOLD~~ | Kapalı | **Hiç etkin olmadı** | `#if HAS_TRINAMIC` içinde → bu kartta derlenmiyor (§8) |
+| Z/E0 sürücü tipi | TMC2208 sanılıyordu | **HR4988SQ** (`A4988`) | SD1-2.4 — donanımla hizalandı |
+| `MINIMUM_STEPPER_*_DIR_DELAY` | 30 ns | **200 ns** | HR4988SQ gereği; 30 ns'de ters yönde adım riski |
 | Z_SAFE_HOMING | Kapalı | Açık | G28'de Z, tabla ortasında (145, 135) home edilir |
 | HEATER_0_MINTEMP / BED_MINTEMP | 0 | 5 | Kopuk termistör koruması geri kazanıldı |
 | E2END | 0x800 (hatalı) | 0x7FF | 24C16 son geçerli adres — PLR taşmasını giderdi |
@@ -70,19 +80,60 @@ PB0/PB1 Z lock modülüne ayrılmıştır. Ayrıntı için [bölüm 10](#10-z-pr
 
 ### 2.2 Step Motor Sürücüler
 
-| Eksen | Sürücü | Mod | Akım | Microstep |
-|-------|--------|-----|------|-----------|
-| X | TMC2208 | STANDALONE (UART yok) | 800 mA RMS | 16× (256× interpolasyon) |
-| Y | TMC2208 | STANDALONE (UART yok) | 800 mA RMS | 16× (256× interpolasyon) |
-| Z | TMC2208 | STANDALONE (UART yok) | 800 mA RMS | 16× (256× interpolasyon) |
-| E0 | TMC2208 | STANDALONE (UART yok) | 800 mA RMS | 16× (256× interpolasyon) |
+Kart **karma** sürücü taşır. Hepsi kartta lehimlidir ve her birinin kendi
+Vref trim potu vardır.
 
-- RSENSE: 0.11Ω (tüm eksenler)
-- CHOPPER_TIMING: CHOPPER_DEFAULT_24V
+| Eksen | Sürücü | Marlin tipi | Ölçülen Vref | Gerçek akım | 42-40 nominalinin |
+|-------|--------|-------------|--------------|-------------|-------------------|
+| X | TMC2208 | `TMC2208_STANDALONE` | 1.27 V | 0.69 A RMS | %69 |
+| Y | TMC2208 | `TMC2208_STANDALONE` | 1.27 V | 0.69 A RMS | %69 |
+| Z | **HR4988SQ** | `A4988` | 1.60 V | **0.47 A RMS/motor** | %47 |
+| E0 | **HR4988SQ** | `A4988` | 0.86 V | 0.51 A RMS | %51 |
+
+- **Motorlar:** dört eksende de Creality **42-40** (~1.0 A/faz, ~0.40 N·m,
+  ~2.8 Ω, ~5.5 mH)
+- **R_SENSE: 0.15 Ω (`R150`)** — tüm sürücülerde, sarım başına 2 adet.
+  *(Bu kılavuzun eski hâlindeki `0.11 Ω` yanlıştı; genel TMC2208 modül
+  değerinden kopyalanmıştı.)*
+- **Mikroadım: 16×**, sürücüler karta lehimli (ayrı jumper'lı modül yok —
+  board fotoğrafıyla doğrulandı), MS1/MS2 PCB üzerinde sabit kablanmış. MCU'ya
+  bağlı değil → `M350` çalışmaz.
+- **256× interpolasyon yalnızca X/Y'de** — TMC2208'in kendi donanım
+  özelliği. HR4988SQ interpolasyon yapmaz, Z/E0'da 16× gerçekten 16×'tir.
+
+> **Z'de tek sürücüye paralel bağlı İKİ motor vardır.** Sürücünün verdiği
+> akım ikiye bölünür; tablodaki 0.47 A değeri motor başınadır (sürücü toplamı
+> 0.94 A RMS / 1.33 A peak, HR4988SQ tavanının %67'si).
+
+> **Dört sürücünün de enable girişi PC3'tür.** Marlin bu pini eksen bazında
+> saymaz — tek bir ekseni bağımsız olarak kapatmak mümkün değildir. HR4988SQ'da
+> duruş akımı azaltma da yoktur (TMC2208'de vardır), yani Z sürücüsü katmanlar
+> arasında tam akımda bekler. Soğutucu zorunludur.
+
+### Vref hesabı — iki formül aynı şeyi ölçmez
+
+| Sürücü | Vref neyi ayarlar | Formül (Rs = 0.15 Ω) |
+|---|---|---|
+| TMC2208 | **RMS** | `I_RMS = Vref × 0.541` |
+| HR4988SQ | **PEAK** | `I_peak = Vref / 1.2` , `I_RMS = I_peak / √2` |
+
+TMC2208'in Vref'ini HR4988SQ'ya kopyalamak **√2 kat** hata demektir.
+
+> **Fabrika ayarı doğrulanmıştır — potlara dokunmayın.** Üç değer de hem motor
+> (%47–69) hem sürücü (%36–67) açısından güvenli bölgede. Tek düşük marj E0
+> (%51); ekstruder tıklaması görülürse **önce LIN_ADVANCE K kalibre edilmeli**
+> (§9), akım ancak o zaman hâlâ sorun varsa 1.05 V'a çıkarılmalı.
 
 ### 2.3 Ekstruder
 
-- **Tip:** Direct drive (bowden değil)
+- **Tip:** **Direct drive** (dişlisiz MK8 tipi; drive gear hotend üzerinde) —
+  kullanıcı donanım doğrulaması, 2026-07-24.
+  *(Tarihçe: dokümanın ilk hâli "direct drive" diyordu; SD1-2.4 denetimi bunu
+  "E steps/mm = 95 → MK8 → Bowden" çıkarımıyla "Bowden" olarak değiştirdi.
+  Çıkarım hatalıydı: 95 steps/mm dişlisiz MK8 tipi **besleyicinin** değeridir
+  ve besleyicinin nerede durduğunu söylemez — dişlisiz direct drive'da da
+  95'tir; ancak dişlili bir direct drive ~400–450 olurdu. Doğrusu donanıma
+  bakılarak kesinleşti.)*
 - **Filament:** 1.75 mm
 - **Nozul:** V-hotend (Creality özel)
 - **E steps/mm:** 95
@@ -100,16 +151,16 @@ PB0/PB1 Z lock modülüne ayrılmıştır. Ayrıntı için [bölüm 10](#10-z-pr
 ### 3.2 Derleme Komutu
 
 ```bash
-cd C:\Users\CNK\Desktop\sermoon-d1-backup
+cd C:\Users\CNK\Desktop\Sermoon-D1
 pio run
 ```
 
-### 3.3 Derleme Sonucu
+### 3.3 Derleme Sonucu (SD1-2.4, ölçüm 2026-07-24)
 
 ```
-RAM:   [==        ]  21.2% (13,896 / 65,536 bytes)
-Flash: [====      ]  37.1% (194,524 / 524,288 bytes)
-SUCCESS — ~15 saniye
+RAM:   [==        ]  20.1% (13,176 / 65,536 bytes)
+Flash: [==        ]  24.2% (127,120 / 524,288 bytes)
+SUCCESS — ~11 saniye
 ```
 
 ### 3.4 Binary Konumu
@@ -127,7 +178,7 @@ uyarı kalır, bu bizim kodumuz değildir ve düzeltilemez:
   (maple framework, `framework-arduinoststm32-maple` paketi içinde)
 
 Ayrıca `Warnings.cpp` bir bilgilendirme `#pragma message` basar (hata değil):
-LIN_ADVANCE aktif, Bowden için K kalibrasyonu hatırlatması.
+LIN_ADVANCE aktif, K kalibrasyonu hatırlatması.
 
 > SD1-2.1 öncesinde `LCD_RTS.cpp`'de 3 adet "uninitialized variable" uyarısı
 > vardı. Bunlar zararsız sanılıyordu ancak `axis` başlatılmamışken
@@ -175,7 +226,7 @@ LIN_ADVANCE aktif, Bowden için K kalibrasyonu hatırlatması.
 | X | 80.00 | GT2 kayış, 20 diş çark, 200 step rev, ×16 microstep |
 | Y | 79.60 | **Farklı** — muhtemelen fabrika kalibrasyonu |
 | Z | 400.00 | T8 × 8mm kurşun mil (lead screw) |
-| E | 95.00 | Direct drive ekstruder |
+| E | 95.00 | **Direct drive** ekstruder (dişlisiz MK8 tipi besleyici) |
 
 > ⚠️ **Y steps = 79.60** — Teorik olarak X ile aynı mekanik yapıda 80 olmalı. Boyutsal test baskısı ile doğrula. Sapma varsa M92 ile ayarla.
 
@@ -187,8 +238,8 @@ LIN_ADVANCE aktif, Bowden için K kalibrasyonu hatırlatması.
 
 | Eksen | Max hız | Not |
 |-------|---------|-----|
-| X | 250 mm/s | TMC2208 StealthChop limiti |
-| Y | 250 mm/s | TMC2208 StealthChop limiti |
+| X | 250 mm/s | 300→250: yüksek hızda gövde rezonansı (StealthChop limiti *değil*) |
+| Y | 250 mm/s | Aynı gerekçe |
 | Z | 5 mm/s | Kurşun mil, yüksek tork gerektirir |
 | E | 25 mm/s | Ekstruder filaman besleme |
 
@@ -279,10 +330,11 @@ LIN_ADVANCE aktif, Bowden için K kalibrasyonu hatırlatması.
 |-----------|-------|---------------|----------|
 | S-Curve Acceleration (Bézier) | ✅ Aktif | 9/10 | Düz ivmeleme yerine eğrisel geçiş |
 | Junction Deviation | ✅ Aktif | 9/10 | Adaptif köşe hızı (Classic Jerk yerine) |
-| Linear Advance (K=0.06) | ✅ Aktif | 8/10 | Basınç dengeleme, direct drive |
+| Linear Advance (K=0.06) | ⚠️ Aktif, **K kalibre edilmemiş** | 8/10 | Direct drive — K kalibre edilmeli (§9) |
 | Adaptive Step Smoothing | ✅ Aktif | 7/10 | Düşük hızlarda step kalitesi |
 | Arc Support + Bézier | ✅ Aktif | 7/10 | G2/G3 yay hareketleri |
-| HYBRID_THRESHOLD | ✅ Aktif | 7/10 | StealthChop↔SpreadCycle otomatik |
+| ~~HYBRID_THRESHOLD~~ | ❌ **Hiç derlenmiyor** | — | `#if HAS_TRINAMIC` içinde (§8.1) |
+| `ADAPTIVE_STEP_SMOOTHING` | ✅ Aktif | 9/10 | HR4988SQ'da interpolasyon olmadığı için kritik (§8.4) |
 | Classic Jerk | ❌ Kapalı | — | Junction Deviation kullanılıyor |
 | Backlash Compensation | ❌ Kapalı | — | Gerekirse açılabilir |
 
@@ -317,44 +369,98 @@ LIN_ADVANCE aktif, Bowden için K kalibrasyonu hatırlatması.
 
 ---
 
-## 8. TMC2208 Sürücü Ayarları
+## 8. Sürücü Ayarları (karma: TMC2208 + HR4988SQ)
 
-### 8.1 StealthChop / SpreadCycle
+> ⚠️ **Bu bölüm 2026-07-23'te tamamen yeniden yazıldı.** Eski hâli
+> `STEALTHCHOP_*`, `HYBRID_THRESHOLD` ve `INTERPOLATE` ayarlarını etkinmiş gibi
+> anlatıyordu. Hiçbiri etkin değil — hepsi `Configuration_adv.h`'daki
+> `#if HAS_TRINAMIC` bloğunun içinde ve **bu blok bu kartta derlenmiyor**.
+> Bu ayarları değiştirmiş olsanız bile yazıcının davranışı değişmemiştir.
+
+### 8.1 Neden hiçbir TMC ayarı çalışmıyor
+
+`Marlin/src/core/drivers.h:80` bunu açıkça söylüyor:
+
+> *"Test for supported TMC drivers that require advanced configuration —
+> **Does not match standalone configurations**"*
+
+`HAS_TRINAMIC` yalnızca **UART/SPI ile yapılandırılabilir** TMC sürücüler için
+true olur. Bu kartta:
+
+| Eksen | `*_DRIVER_TYPE` | `HAS_TRINAMIC`'e girer mi? |
+|---|---|---|
+| X, Y | `TMC2208_STANDALONE` | Hayır — `_STANDALONE` eşleşmez |
+| Z, E0 | `A4988` (HR4988SQ) | Hayır — TMC değil |
+
+Sonuç `HAS_TRINAMIC = false`. Blok içindeki **`*_CURRENT`, `*_MICROSTEPS`,
+`*_RSENSE`, `INTERPOLATE`, `STEALTHCHOP_*`, `HYBRID_THRESHOLD`,
+`CHOPPER_TIMING`, `MONITOR_DRIVER_STATUS` hiç derlenmez.**
+
+Dolayısıyla şu G-code'lar da **yoktur**: `M906` (akım), `M569` (chop modu),
+`M350` (mikroadım), `M122` (sürücü durumu). Sensorless homing da yok.
+
+### 8.2 Gerçekte neyin neyi belirlediği
+
+| Ayar | Nerede belirlenir | Yazılımdan değişir mi? |
+|---|---|---|
+| Akım | Sürücü üzerindeki **Vref potu** | ❌ Hayır |
+| Mikroadım | Sürücüde **PCB'ye sabit kablanmış MS1/MS2** (16×, jumper yok) | ❌ Hayır |
+| Chopper modu | Çipin donanım varsayılanı | ❌ Hayır |
+| 256× interpolasyon | TMC2208'in kendi donanımı (**yalnızca X/Y**) | ❌ Hayır |
+| Adım darbe genişliği | `MINIMUM_STEPPER_PULSE` | ✅ Evet |
+| DIR kurulum süresi | `MINIMUM_STEPPER_*_DIR_DELAY` | ✅ Evet |
+| Adım yumuşatma | `ADAPTIVE_STEP_SMOOTHING` | ✅ Evet |
+
+### 8.3 Firmware'in gerçekten kontrol ettiği üç değer
+
+Karma yapılandırmada bu makrolar **global**'dir (eksen başına ayarlanamaz), bu
+yüzden her zaman **en katı** gereksinim geçerlidir:
 
 ```cpp
-#define STEALTHCHOP_XY          // StealthChop aktif (sessiz mod)
-#define STEALTHCHOP_Z           // StealthChop aktif
-#define STEALTHCHOP_E           // StealthChop aktif
-#define INTERPOLATE true        // 256× microstep interpolasyon (düzgün hareket)
+#define MINIMUM_STEPPER_PULSE          1       // µs  — HR4988SQ belirliyor
+#define MAXIMUM_STEPPER_RATE           400000  // Hz  — TMC2208 belirliyor
+#define MINIMUM_STEPPER_POST_DIR_DELAY 200     // ns  — HR4988SQ belirliyor
+#define MINIMUM_STEPPER_PRE_DIR_DELAY  200     // ns
 ```
 
-### 8.2 HYBRID_THRESHOLD — Otomatik Mod Geçişi
+| Makro | Değer | Belirleyen | Diğerinin isteği |
+|---|---|---|---|
+| `MINIMUM_STEPPER_PULSE` | 1 µs | HR4988SQ | TMC2208 ~100 ns yeterdi |
+| `MAXIMUM_STEPPER_RATE` | 400 kHz | TMC2208 | HR4988SQ 500 kHz kaldırırdı |
+| `*_DIR_DELAY` | 200 ns | HR4988SQ | TMC2208 20 ns yeterdi |
+
+> **SD1-2.4'teki kritik düzeltme:** `*_DIR_DELAY` daha önce **30 ns** idi
+> (TMC2208'e göre ayarlanmıştı) ve HR4988SQ için **yetersizdi**. DIR pini STEP
+> kenarından yeterince önce kararlı değilse sürücü adımı **eski yönde** atar.
+> En çok etkilenen yollar yön değişiminin sık olduğu yerlerdir: Z'de katman
+> geçişi (paralel iki motor birlikte yanlış yöne gider) ve E'de her retract.
+> Belirtisi katman kayması ve retract sonrası tutarsız akıştır.
+
+`MAXIMUM_STEPPER_RATE` pratikte bağlayıcı değil — en hızlı eksen X/Y,
+250 mm/s × 80 step/mm = 20 kHz, tavanın %5'i. Ancak `stepper.h:160`'ta darbe
+tabanını da belirler: 72 MHz / 400000 = 180 çevrim = **2.5 µs**, HR4988SQ'nun
+istediği 1 µs'nin rahatça üstünde.
+
+### 8.4 ADAPTIVE_STEP_SMOOTHING — HR4988SQ'da kritik
 
 ```cpp
-#define HYBRID_THRESHOLD
-#define X_HYBRID_THRESHOLD     100  // mm/s — üstünde SpreadCycle'e geç
-#define Y_HYBRID_THRESHOLD     100  // mm/s
-#define Z_HYBRID_THRESHOLD       3  // mm/s
-#define E0_HYBRID_THRESHOLD     30  // mm/s
+#define ADAPTIVE_STEP_SMOOTHING
 ```
 
-| Eksen | StealthChop (< threshold) | SpreadCycle (≥ threshold) |
-|-------|---------------------------|---------------------------|
-| X/Y | < 100 mm/s → sessiz, düşük tork | ≥ 100 mm/s → gürültülü, yüksek tork |
-| Z | < 3 mm/s → sessiz | ≥ 3 mm/s → güvenli |
-| E | < 30 mm/s → sessiz | ≥ 30 mm/s → güçlü |
+X/Y'de TMC2208 16× girişi çip içinde 256×'e interpole ettiği için hareket zaten
+pürüzsüz. **Z/E0'da böyle bir şey yok** — 16× gerçekten 16×. Düşük ve orta step
+frekanslarında adım basamakları duyulur hâle gelir; Z'de paralel iki motor
+olduğu için titreşim daha da belirgindir.
 
-> **Neden önemli?** StealthChop sessiz ama yüksek hızlarda tork düşebilir → layer shift riski. HYBRID_THRESHOLD hızlı hareketlerde otomatik SpreadCycle'e geçer.
+`ADAPTIVE_STEP_SMOOTHING` bu aralıkta efektif step rate'i ikiye katlayarak
+aradaki farkı kapatır. **HR4988SQ ile kapatılmamalıdır.**
 
-### 8.3 Akım ve Mikroadım
+### 8.5 Akım ayarı → §2.2
 
-```cpp
-// Tüm eksenler:
-// RMS Current: 800 mA
-// RSENSE: 0.11Ω
-// Microstep: 16× (256× interpolasyon ile)
-// CHOPPER_TIMING: CHOPPER_DEFAULT_24V (24V besleme için optimize)
-```
+Vref değerleri, ölçülen akımlar, R_sense (0.15 Ω) ve iki sürücü ailesinin
+farklı Vref formülleri **[bölüm 2.2](#22-step-motor-sürücüler)**'de.
+
+Özet: **fabrika ayarı doğrulanmıştır, potlara dokunmayın.**
 
 ---
 
@@ -369,10 +475,10 @@ LIN_ADVANCE aktif, Bowden için K kalibrasyonu hatırlatması.
 
 ### 9.2 K Faktörü Açıklaması
 
-- **0.06** — Bowden ekstruder için başlangıç değeri (Sermoon D1 = Bowden)
-- Bowden tipik aralık: 0.4 – 0.9 (önceki 0.22 değeri yanlıştı)
-- Direct drive tipik aralık: 0.02 – 0.15 (Sermoon D1 için geçerli değil)
-- **Kullanıcı kalibrasyonu şart** — başlangıç değeri sadece referans
+- **0.06** — direct drive için makul başlangıç değeri (Sermoon D1 = direct drive)
+- Direct drive tipik aralık: 0.02 – 0.15 (Sermoon D1 için geçerli aralık)
+- Bowden tipik aralık: 0.4 – 0.9 (bu yazıcı için geçerli DEĞİL)
+- **Kullanıcı kalibrasyonu şart** — E0 sürücüsü SD1-2.4'te değişti, başlangıç değeri sadece referans
 
 ### 9.3 K Faktörü Kalibrasyonu
 
@@ -746,14 +852,27 @@ Her iki koruma da aktif. Sensör arızası durumunda ısıtıcı otomatik kapan�
 
 ### 14.2 Step Motor Pinleri
 
-| Fonksiyon | Enable | Step | Dir |
-|-----------|--------|------|-----|
-| X | PC3 | PC2 | PB9 |
-| Y | PC3 | PB8 | PB7 |
-| Z | PC3 | PB6 | PB5 |
-| E0 | PC3 | PB4 | PB3 |
+| Fonksiyon | Enable | Step | Dir | Sürücü |
+|-----------|--------|------|-----|--------|
+| X | PC3 | PC2 | PB9 | TMC2208 standalone |
+| Y | PC3 | PB8 | PB7 | TMC2208 standalone |
+| Z | PC3 | PB6 | PB5 | **HR4988SQ** — bu tek sete **paralel 2 motor** |
+| E0 | PC3 | PB4 | PB3 | **HR4988SQ** |
 
-> Tüm eksenler ortak enable pini (PC3) — aktif low
+> **Ortak enable pini (PC3), aktif low.** Marlin bu pini eksen bazında saymaz:
+> `disable_Z()` çağrısı PC3'ü pasife çekerek X/Y/E0'ı da bırakır. Pratikte
+> sorun çıkarmaz çünkü eksenler yalnızca hepsi birden boşta kalınca kapatılır
+> (`DEFAULT_STEPPER_DEACTIVE_TIME` + tüm `DISABLE_INACTIVE_*` true).
+> **Sonucu:** tek bir ekseni ısınma nedeniyle bağımsız kapatmak mümkün değil,
+> ve `Configuration.h`'daki `DISABLE_X/Y/Z/E` hepsi `false` kalmalıdır.
+
+> **PB3/PB4 JTAG hattıdır** (JTDO / JNTRST) ve E0_DIR/E0_STEP olarak
+> kullanılır. `pins_CREALITY.h`'daki `DISABLE_DEBUG` tanımı kaldırılırsa bu
+> pinler GPIO'ya dönmez ve **ekstruder hiç hareket etmez**.
+
+> **Z için Z2_* pin tanımı YOKTUR ve olmamalıdır.** İki motor tek sürücüye
+> paralel bağlı; `Z2_DRIVER_TYPE` ikinci bir bağımsız sürücü demektir, öyle
+> bir donanım yok.
 
 ### 14.3 Sıcaklık ve Isıtıcı Pinleri
 
@@ -937,10 +1056,11 @@ Probe olmadığı için probe sorun giderme bölümü kaldırıldı. Bunun yerin
 | Sorun | Çözüm |
 |-------|-------|
 | Ringing (çizgi izi) | `DEFAULT_ACCELERATION` düşür (500→300), `JUNCTION_DEVIATION_MM` düşür |
-| Layer shift | `HYBRID_THRESHOLD` aktif mi kontrol et, X/Y akım yetersiz olabilir |
+| Layer shift (X/Y) | Vref 1.27 V mi ölç (0.69 A RMS). Kayış gerginliği ve kasnak vidası. `HYBRID_THRESHOLD` **aramayın — bu kartta yok** |
+| Layer shift (Z) veya retract sonrası bozuk akış | `MINIMUM_STEPPER_*_DIR_DELAY` **200** mü kontrol et. 30 ns'de HR4988SQ ters yönde adım atar (§8.3) |
 | İlk katman yapışmıyor | Z offset'i babystep ile kalibre et ([15.3](#153-z-offset-ilk-katman-kalibrasyonu)), tablayı manuel tesviye et |
 | Extrusion tutarsız | `LIN_ADVANCE_K` kalibre et, E steps doğrula |
-| Yüzey kalitesiz (düşük hız) | `STEALTHCHOP` + `INTERPOLATE` aktif mi kontrol et |
+| Yüzey kalitesiz / Z'de duyulur basamak | `ADAPTIVE_STEP_SMOOTHING` açık mı kontrol et. `STEALTHCHOP`/`INTERPOLATE` **bu kartta yok** (§8.1) — Z/E0'da HR4988SQ interpolasyon yapmaz |
 
 ### 17.5 Sensör Voltaj Bölücü Doğrulama — *yalnızca probe eklenirse*
 
@@ -983,6 +1103,33 @@ Multimetre ile ölç:
 - `monitor_speed` 250000 → 115200 (`BAUDRATE` ile eşitlendi).
 - Flash: 187.028 → **184.196** byte. Proje kodunda **0 uyarı**.
 
+### SD1-2.4 (2026-07-23) — Karma sürücü + doküman denetimi
+
+**Firmware**
+- `Z_DRIVER_TYPE` / `E0_DRIVER_TYPE`: `TMC2208_STANDALONE` → `A4988`
+  (fiziksel çip **HR4988SQ**; Marlin'de HR4988 tipi yok, A4988 donanım
+  uyumlu eşdeğeridir). X/Y TMC2208 standalone kaldı.
+- **KRİTİK:** `MINIMUM_STEPPER_POST_DIR_DELAY` / `PRE_DIR_DELAY`
+  **30 ns → 200 ns**. 30 ns HR4988SQ için yetersizdi → yön değişimlerinde
+  ters yönde adım riski (Z katman geçişi, E retract). Bkz. §8.3.
+- Flash +40 byte (127.080 → 127.120), RAM değişmedi. **Yeniden flash gerekir.**
+
+**Doküman denetimi — ölçümle çelişen iddialar düzeltildi**
+
+| Nerede | Yazıyordu | Gerçek |
+|---|---|---|
+| §2.2 | 4 eksen de TMC2208, 800 mA RMS | Karma; X/Y 0.69 A, Z 0.47 A/motor, E0 0.51 A |
+| §2.2 | `RSENSE 0.11 Ω` | **0.15 Ω** (`R150`), ölçüldü |
+| §2.2 | Z tek motor | **Paralel iki motor**, tek sürücü |
+| §2.3, §5.1 | "Direct drive" | ~~"Bowden" yapıldı~~ — **geri alındı 2026-07-24**: donanım direct drive (aşağı bak) |
+| §5.2 | "TMC2208 StealthChop limiti" | Gövde rezonansı (300→250) |
+| **§8 tamamı** | StealthChop/HYBRID/INTERPOLATE etkin | **Hiç derlenmiyor** — `#if HAS_TRINAMIC` false |
+| §17 | "HYBRID_THRESHOLD kontrol et" | Bu kartta yok; DIR delay ve Vref'e bak |
+
+- `Configuration_adv.h`: `#if HAS_TRINAMIC` bloğunun başına ölü olduğunu
+  açıklayan uyarı eklendi; `*_RSENSE` 0.11 → 0.15; `CHOPPER_TIMING`'in
+  "HAS_TRINAMIC aktif olduğu için kullanılır" yorumu (yanlıştı) düzeltildi.
+
 ### Versiyon: MarlinV2 by CTK (2026-05-23)
 
 #### Oturum 1 — Temel Düzeltmeler
@@ -992,8 +1139,9 @@ Multimetre ile ölç:
 
 #### Oturum 2 — Hareket Optimizasyonu
 - `HOMING_FEEDRATE_XY`: 3000 → 1000 mm/m (daha yumuşak homing)
-- `LIN_ADVANCE_K`: 0.22 → 0.06 (Bowden extruder için başlangıç değeri; kullanıcı kalibrasyonu zorunlu)
-- `HYBRID_THRESHOLD`: aktif edildi (X/Y: 100 mm/s, Z: 3 mm/s, E: 30 mm/s)
+- `LIN_ADVANCE_K`: 0.22 → 0.06 (direct drive için başlangıç değeri; kullanıcı kalibrasyonu zorunlu)
+- ~~`HYBRID_THRESHOLD`: aktif edildi~~ — **hiçbir zaman etkin olmadı**;
+  `#if HAS_TRINAMIC` bloğunda olduğu için derlenmiyordu (2026-07-23 denetimi)
 
 #### Oturum 3 — Z-Probe / ABL Entegrasyonu *(SD1-2.1'de geri alındı — bkz. Oturum 4)*
 - `pins_CREALITY.h`: PB1 → `Z_MIN_PROBE_PIN` (FIX_MOUNTED_PROBE koşullu)

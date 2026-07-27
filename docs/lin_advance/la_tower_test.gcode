@@ -18,12 +18,12 @@
 ;        - Geçişte BLOB (tıknaz şişme) → K çok düşük
 ;        - Geçişte DELİK (incelme) → K çok yüksek
 ;        - Uniform → bingo, K doğru
-;   4. K'yı 0.1 artırarak/azaltarak tekrar dene (5-6 deneme yeterli)
+;   4. K'yı 0.02 artırarak/azaltarak tekrar dene (5-6 deneme yeterli)
 ;
 ; ═══════════════════════════════════════════════════════════════════
 
 ; ── BURAYI DEĞİŞTİR ──
-M900 K0.40                ; Sermoon Bowden tipik aralık: 0.4 - 1.2
+M900 K0.06                ; Sermoon direct drive tipik aralık: 0.02 - 0.15
 ; ─────────────────────
 
 ;----- SETUP -----

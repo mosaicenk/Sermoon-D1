@@ -8,6 +8,349 @@ Versiyonlama: Sermoon-D1-X.Y[-suffix] (X = major iyileştirme, Y = minor)
 
 ---
 
+## [Sermoon-D1-2.5] — 2026-07-27
+
+Sürüm kimliği ve build bütünlüğü. **Marlin mantığı değişmedi.** Flash −8 byte
+(127.120 → **127.112**, %24,2 sabit), RAM değişmedi (13.176). Binary değişti
+→ **yeniden flash gerekir** (SHA256 `1BA1E0A4…C54C`, 2026-07-27 derlemesi).
+
+Bu sürümle birlikte SD1-2.3 ve SD1-2.4 **ilk kez commit edildi**; o güne kadar
+her ikisi de yalnızca çalışma dizininde duruyordu.
+
+### Fixed
+
+- **Firmware kendini `SD1-*` olarak tanıtmıyordu.** `Marlin/Version.h`'daki
+  `SHORT_BUILD_VERSION` değeri `"MarlinV2 by CTK"` idi — hangi fork sürümünün
+  yüklü olduğunu söylemiyor, üstelik 15 karakterle DWIN'in ~14 karakterlik
+  `FW_VERSION_TEXT_VP` slot'unu aşıyordu (dosyanın kendi yorumu bu sınırı
+  zaten yazmıştı; değer ekranda kırpılıyordu). Artık `"SD1-2.5"` — 7 karakter.
+  Atıf `DETAILED_BUILD_VERSION`'a taşındı; M115 yanıtı:
+  `SD1-2.5 (Sermoon D1 by CTK, base V1.1.10)`.
+  `STRING_DISTRIBUTION_DATE` 2026-07-21 → 2026-07-27.
+  Ölçüm: temiz derlemede **−8 byte** (dize 16 → 8 byte).
+
+- **`cxx_runtime_min.cpp` kaybolsa build SESSİZCE başarılı oluyordu.**
+  Dosya versiyon kontrolünde değildi. Yokluğunda libstdc++'ın zayıf
+  `__verbose_terminate_handler`'ı geri gelir, `__cxa_demangle` üzerinden
+  çözümleyici zinciri yeniden linklenir ve firmware **~28,8 KB büyür** —
+  hiçbir uyarı verilmeden. SD1-2.3'ün en büyük kazancı bir `git clean` ile
+  sessizce geri alınabilirdi.
+  Eklenen link-zamanı nöbetçisi: dosyada `.set` ile mutlak sembol
+  (`sermoon_cxx_runtime_min_present`), `common-cxxflags.py`'de
+  `-Wl,--require-defined=...`. Dosya yoksa link durur.
+  - **Ölçümle doğrulandı:** dosya geçici kaldırılıp derlendi → `[FAILED]`;
+    geri konup derlendi → `[SUCCESS]`.
+  - **`--undefined` DEĞİL — önce o denendi ve İŞE YARAMADI.** Dosya
+    silinmesine rağmen link başarıyla tamamlandı. `--undefined` sembolü
+    yalnızca "undefined" olarak girer (amacı arşivden modül çektirmek) ve
+    çözümlenmeden kalırsa hata vermez; `--require-defined` tanımlı olmayı
+    şart koşar. Nöbetçinin kendisi de ölçülmeden doğru sayılmadı.
+  - Maliyet: **0 byte** (izole ölçüm: nöbetçi sabit tutulup yalnız versiyon
+    dizesi değiştirildi, fark tam olarak dize farkı kadar çıktı).
+
+### Documentation
+
+- **`Marlin/Version.h` artımlı derlemede YENİDEN DERLENMİYOR — belgelendi.**
+  Dosya `MarlinConfigPre.h:42`'de makro ile dahil ediliyor
+  (`#include XSTR(../../CUSTOM_VERSION_FILE)`); SCons'un C tarayıcısı
+  makro-genişletmeli include yolunu çözemez, dolayısıyla dosya bağımlılık
+  grafiğinde **yer almaz**. Ölçüm: dosya değiştirilip `pio run` çalıştırıldı
+  → **0 birim derlendi, binary değişmedi**; aynı değişiklik temiz derlemede
+  −8 byte üretti. Sonuç: **versiyon yükseltirken temiz derleme zorunlu**,
+  aksi hâlde firmware sessizce eski sürüm dizesini taşır. Uyarı `Version.h`
+  başına yazıldı.
+
+  > Bu, yukarıdaki versiyon düzeltmesini denetlerken ortaya çıktı: izole
+  > boyut ölçümü beklenen farkı vermeyince neden arandı.
+
+---
+
+## [Sermoon-D1-2.4] — 2026-07-23
+
+Z ve E0 sürücüleri **HR4988SQ** olarak tanımlandı; X/Y TMC2208 standalone
+kaldı → firmware artık **karma sürücü** yapılandırması. Flash +40 byte
+(127.080 → **127.120**, %24,2 sabit), RAM değişmedi (13.176). Binary değişti
+→ **yeniden flash gerekir** (SHA256 `BDAB96BB…B987`).
+
+Ayrıca bu sürüm, sürücü değişiminin açığa çıkardığı **bir zamanlama hatasını**
+düzeltiyor (aşağıda) — bu, değişikliğin en önemli parçasıdır.
+
+### Fixed — Kritik
+
+- **`MINIMUM_STEPPER_*_DIR_DELAY` 30 ns → 200 ns.**
+  HR4988SQ (A4988 ailesi) DIR sinyalinin STEP kenarından en az **200 ns**
+  önce kararlı olmasını ister. Yapılandırmada değer **30 ns** olarak elle
+  sabitlenmişti (TMC2xxx'in 20 ns'ine küçük pay eklenerek). Sürücü tipini
+  değiştirmek bunu **kendiliğinden düzeltmez**: `Conditionals_post.h:572`'deki
+  otomatik A4988 dalı yalnızca makro tanımsızken çalışır, burada tanımlıydı.
+  - Belirtisi kozmetik değil: DIR kararlı olmadan gelen adım **eski yönde**
+    atılır. Yön değişiminin sık olduğu iki yol tam da kritik olanlar —
+    Z'de katman geçişi (paralel iki motor birlikte yanlış yöne gider) ve
+    E'de her retract / LIN_ADVANCE geri beslemesi.
+  - Maliyeti: 72 MHz'de 200 ns ≈ 15 çevrim, yalnızca yön değiştiğinde ödenir.
+    Flash artışının (+40 B) tamamı bu gecikme kodundan geliyor.
+  - **Nasıl bulundu:** tahminle değil ölçümle. Değişiklik sonrası
+    `#pragma message` ile türetilmiş makrolar basıldı; beklenen 200 yerine
+    30 görüldü. Yalnızca `Configuration.h`'a bakan bir denetim bunu kaçırırdı.
+
+### Changed
+
+- **`Z_DRIVER_TYPE` / `E0_DRIVER_TYPE`: `TMC2208_STANDALONE` → `A4988`.**
+  Marlin'de `HR4988` diye bir sürücü tipi yok; HR4988SQ, A4988'in donanım
+  uyumlu klonudur (aynı STEP/DIR/EN arayüzü, aynı MS1/MS2/MS3 mikroadım
+  seçimi, aynı zamanlama sınırları). `A4988` doğru eşlemedir.
+
+- **Doğrulanan (değiştirilmeyen) türetilmiş değerler.** Karma yapılandırmada
+  bu makrolar global olduğu için **en katı** gereksinim geçerlidir; üçü de
+  ölçümle teyit edildi:
+
+  | Makro | Değer | Belirleyen |
+  |---|---|---|
+  | `MINIMUM_STEPPER_PULSE` | 1 µs | HR4988SQ (TMC2208 ~100 ns yeterdi) |
+  | `MAXIMUM_STEPPER_RATE` | 400.000 | TMC2208 (A4988 500 kHz kaldırırdı) |
+  | `*_DIR_DELAY` | 200 ns | HR4988SQ (yukarıda düzeltildi) |
+
+  `MAXIMUM_STEPPER_RATE` pratikte bağlayıcı değil: en hızlı eksen X/Y,
+  250 mm/s × 80 step/mm = 20 kHz, tavanın %5'i. Ancak `stepper.h:160`'ta
+  darbe tabanını da belirliyor — 72 MHz / 400.000 = 180 çevrim (2,5 µs),
+  HR4988SQ'nun istediği 1 µs'nin rahatça üstünde.
+
+- **`ADAPTIVE_STEP_SMOOTHING` artık yük taşıyor.** TMC2208 16x girişi çip
+  içinde 256x'e interpole eder; HR4988SQ etmez — Z/E'de 16x gerçekten 16x.
+  Ayar zaten açıktı, gerekçesi güncellendi: HR4988SQ'ya geçtikten sonra
+  **kapatılmamalıdır**.
+
+### Documentation
+
+- **Ekstruder tipi düzeltildi: "Bowden" → DIRECT DRIVE** (2026-07-24,
+  kullanıcı donanım doğrulaması). SD1-2.4 denetimi, MANUAL'ın orijinal
+  "direct drive" ifadesini "E steps/mm 95 = stok MK8 = Bowden" çıkarımıyla
+  değiştirmişti. Çıkarım hatalıydı: 95 steps/mm dişlisiz MK8 tipi
+  **besleyicinin** değeridir ve besleyicinin nerede durduğunu kanıtlamaz —
+  dişlisiz direct drive'da da 95'tir (dişlili olsaydı ~400-450 olurdu).
+  Düzeltilen yerler: README.md (donanım tablosu, §4.5d, tuning listesi,
+  geliştirici notu), MANUAL.md (7 konum), docs/lin_advance/README.md
+  (K aralıkları 0.4-0.9 → **0.02-0.15**, K-factor aracı parametreleri
+  0-1.5/0.1 → 0-0.3/0.02, tüm örnekler), la_tower_test.gcode (M900 K0.40 →
+  K0.06), docs/README.md, docs/junction_deviation/README.md,
+  `Configuration_adv.h` LIN_ADVANCE_K yorumu, `Warnings.cpp` pragma metni.
+  **Kod/binary etkisi yok** (yalnız yorum + pragma metni). `LIN_ADVANCE_K`
+  0.06 default'u DEĞİŞMEDİ — direct drive için makul başlangıç; sürücü
+  değişimi (HR4988SQ) nedeniyle kalibrasyon yine şart.
+
+- **SHA256'nın güne bağlı olduğu keşfedildi ve belgelendi** (2026-07-24).
+  `Marlin.cpp:956` binary'ye `__DATE__` gömer; temiz derleme başka günde
+  farklı hash üretir. Ölçüm: yorum/pragma düzeltmeleri revert/re-apply
+  deneyinde aynı gün iki derleme birebir aynı çıktı (`4402B902…AD818`) —
+  yani bu turun kod-dosyası dokunuşları (yorum + pragma metni) binary'ye
+  etkisizdir; dünkü `BDAB96BB…B987`'den tek fark tarih string'i.
+  Sonuç: bit-bit doğrulama yalnızca aynı gün yapılan derlemeler arasında
+  anlamlı. README Build Footprint'e uyarı eklendi.
+
+- **`docs/lin_advance/README.md` gerçek yapılandırmayla hizalandı** (2026-07-24).
+  Doküman default K'yı **0.22** diye veriyordu; gerçek değer
+  `Configuration_adv.h:1483`'te **0.06** (M502 sonrası dönülen değer de bu).
+  Bayat satır referansları güncellendi (1429/1421 → 1466/1483).
+- **S_CURVE_ACCELERATION + LIN_ADVANCE etkileşimi belgelendi** (2026-07-24).
+  LA'nın blok başına telafi hızı (`advance_speed`) sabit-ivme varsayımıyla
+  hesaplanır; S-curve anlık ivmeyi değiştirir (`stepper.cpp:1582/1627` —
+  `LA_isr_rate` blok boyunca sabit). Upstream bir dönem bu birlikteliği
+  `EXPERIMENTAL_SCURVE` bayrağıyla engellemişti; bu taban o korumadan eski.
+  K=0.06'da etkisi ölçülemez; kalibrasyon deseni hiçbir K değerinde uniform
+  olmuyorsa S-curve'ü kapatma yordamı
+  `docs/lin_advance/README.md`'ye yazıldı. **Kod değiştirilmedi** — karar,
+  K kalibrasyonu sırasında desene bakılarak verilmeli.
+
+- **Karma sürücü ve paralel Z belgelendi.** Z'de tek sürücüye paralel iki
+  motor bağlı; Marlin tarafında bu tek eksendir (`Z2_DRIVER_TYPE` bilerek
+  kapalı). Paralel bağlantı sürücünün verdiği akımı ikiye böler → Vref, tek
+  motorlu kuruluma göre iki katı akıma karşılık gelmeli.
+- **Tek enable hattı (PC3) belgelendi.** Dört sürücünün de EN girişi PC3'e
+  bağlı; Marlin bu pini eksen bazında saymaz. Sonuç: **tek bir ekseni ısınma
+  nedeniyle yazılımdan kapatmak mümkün değil** — HR4988SQ'nun ısısı yalnızca
+  donanımsal soğutmayla yönetilebilir.
+- **README §4.5 eklendi**: HR4988SQ devreye alma sırası — yön kontrolü
+  (Z yukarıda, çarpmasız G-code ile), Vref hesabı, soğutma, LIN_ADVANCE K
+  yeniden kalibrasyonu, mikroadım doğrulaması.
+- **`INVERT_Z_DIR` / `INVERT_E0_DIR` bilerek DEĞİŞTİRİLMEDİ.** StepStick
+  formatında A4988 ve TMC2208 modüllerinin motor çıkış sırası terstir, yani
+  fiziksel modül değiştiyse yön ters dönebilir. Ancak bu, kartın gerçekte
+  nasıl bağlı olduğu ölçülmeden bilinemez ve yanlış tahmin nozülü tablaya
+  sürer. README'ye güvenli test yordamı kondu; karar kullanıcının.
+- ~~**`LIN_ADVANCE_K` yorumu düzeltildi.**~~ **Bu madde 2026-07-24'te GERİ
+  ALINDI.** Bu turda yorum "bu yazıcı Bowden" gerekçesiyle değiştirilmişti
+  (E steps/mm 95 = stok MK8 çıkarımı). Çıkarım hatalıydı ve kullanıcı donanımı
+  doğruladı: Sermoon D1 **direct drive**. Ayrıntı yukarıdaki 2026-07-24
+  düzeltme kaydında. Değer (0.06) hiçbir turda değişmedi; doğru K yine
+  kalibrasyonla bulunur.
+- **`DISABLE_DEBUG` yorumu düzeltildi.** "Release PB4 (Y_ENABLE_PIN)"
+  diyordu; PB4 `E0_STEP_PIN`, Y_ENABLE ise PC3. Doğrusu: PB3/PB4 JTAG
+  hattıdır ve E0_DIR/E0_STEP olarak kullanılır — `DISABLE_DEBUG` olmadan
+  ekstruder hiç dönmez.
+
+### Documentation — MANUAL.md gerçek donanım verisiyle hizalandı
+
+Kullanıcıdan alınan ölçülmüş donanım verisi (Creality **42-40** motorlar,
+`R150` = **0.15 Ω** sense direnci, kart üstünden okunan Vref'ler) MANUAL'daki
+sürücü bölümlerinin büyük kısmını geçersiz kıldı.
+
+**Doğrulanmış akımlar** (formüller sürücü ailesine göre farklı: TMC2208 Vref
+**RMS**, HR4988SQ Vref **PEAK** ayarlar — karıştırmak √2 kat hata):
+
+| Eksen | Vref | Akım | 42-40 nominalinin | Sürücü tavanının |
+|---|---|---|---|---|
+| X/Y | 1.27 V | 0.69 A RMS | %69 | — |
+| Z (×2 paralel) | 1.60 V | 0.47 A RMS/motor | %47 | %67 |
+| E0 | 0.86 V | 0.51 A RMS | %51 | %36 |
+
+Sonuç: **fabrika ayarı doğru, hiçbir pot değiştirilmemeli.** Ara hesaplarda
+R_sense 0.10 Ω varsayılarak Z'nin sürücü tavanında çalıştığı ve düşürülmesi
+gerektiği düşünülmüştü; `R150` ölçümü bunu çürüttü.
+
+**§8 tamamen yeniden yazıldı.** Eski hâli `STEALTHCHOP_*`,
+`HYBRID_THRESHOLD` ve `INTERPOLATE` ayarlarını etkinmiş gibi anlatıyordu.
+Hepsi `Configuration_adv.h`'daki `#if HAS_TRINAMIC` bloğunda ve bu blok
+**hiç derlenmiyor** (`drivers.h:80` — standalone eşleşmez). Yeni §8 gerçekte
+neyin neyi belirlediğini gösteriyor: akım Vref potundan, mikroadım PCB'ye
+sabit kablanmış MS1/MS2'den (jumper yok), chopper çipin donanımından;
+firmware'in kontrol ettiği üç değer ise `MINIMUM_STEPPER_PULSE`,
+`MAXIMUM_STEPPER_RATE` ve `*_DIR_DELAY`.
+
+Düzeltilen diğer iddialar:
+
+| Bölüm | Yazıyordu | Gerçek |
+|---|---|---|
+| §2.2 | 4 eksen de TMC2208, 800 mA RMS | Karma; ölçülen akımlar yukarıda |
+| §2.2 | `RSENSE 0.11 Ω` | **0.15 Ω** — genel TMC2208 modül değerinden kopyalanmış |
+| §2.2 | Z tek motor | **Paralel iki motor**, tek sürücü, akım ikiye bölünür |
+| §2.3, §5.1 | "Direct drive (bowden değil)" | ~~"Bowden" yapıldı~~ — **hatalıydı; 2026-07-24'te geri alındı** (donanım: direct drive) |
+| §5.2 | "TMC2208 StealthChop limiti" | Gövde rezonansı (300→250) |
+| §14.2 | Yalnızca pin tablosu | PC3 paylaşımının sonuçları, PB3/PB4 JTAG, Z2 uyarısı |
+| §17 | "HYBRID_THRESHOLD kontrol et" | Bu kartta yok; DIR delay ve Vref'e yönlendirildi |
+
+**`Configuration_adv.h`:**
+- `#if HAS_TRINAMIC` bloğunun başına, bloğun tamamının bu kartta derlenmediğini
+  ve gerçek donanım ayarlarının nerede olduğunu açıklayan uyarı eklendi.
+- `*_RSENSE` 0.11 → **0.15** (13 tanım). Blok ölü olduğu için davranışa etkisi
+  yok, ama ileride UART'lı sürücüye geçilirse doğru başlangıç noktası olur.
+- `CHOPPER_TIMING` yorumu düzeltildi: "HAS_TRINAMIC aktif olduğu için bu değer
+  TMCStepper init sırasında kullanılır" diyordu — `HAS_TRINAMIC` false,
+  TMCStepper hiç linklenmiyor.
+
+**Doğrulama:** bu turdaki tüm değişiklikler sonrası üretilen binary, sürücü
+değişikliği sonrası binary ile **bit-bit aynı** (`BDAB96BB…B987`). `*_RSENSE`
+değerlerini değiştirmenin binary'yi hiç etkilememesi, `#if HAS_TRINAMIC`
+bloğunun ölü olduğunun bağımsız kanıtıdır.
+
+### Documentation — ölçümle çelişen iddialar düzeltildi (README mekanik tablo)
+
+Yapılandırma dosyalarıyla karşılaştırıldı, dört satır hatalıydı:
+
+| Satır | README diyordu | Gerçek (`Configuration.h`) |
+|---|---|---|
+| Maks. hız | 300, 300, 5, 25 | **250**, **250**, 5, 25 |
+| Maks. ivme | 1000, 1000, 100, 1000 | **800**, **800**, 100, **5000** |
+| Travel ivmesi | 1000 mm/s² | **800** mm/s² |
+| Jerk | "10, 10, 0.4, 5" | **Kullanılmıyor** — `CLASSIC_JERK` kapalı, `JUNCTION_DEVIATION` 0.013 etkin |
+
+Jerk satırı en yanıltıcısıydı: verilen değerler `Configuration.h:802-804`'te
+**yorum satırındaki** eski kalibrasyon değerleri.
+
+### Doğrulama
+
+| Adım | Sonuç |
+|---|---|
+| Sürücü tipi değişimi sonrası derleme | başarılı, 127.080 B (boyut değişmedi) |
+| Türetilmiş makro ölçümü (`#pragma message`) | `POST_DIR_DELAY=30` → **hata yakalandı** |
+| DIR delay 200 ns düzeltmesi sonrası ölçüm | `POST=200 PRE=200 PULSE=1 RATE=400000` ✓ |
+| Temiz derleme | başarılı, 127.120 B / 13.176 B RAM |
+| Derleyici uyarısı | proje kodunda **0** (+1 bilinen upstream: `util_adc.c`) |
+
+---
+
+## [Sermoon-D1-2.3] — 2026-07-22
+
+Toolchain yapılandırma denetimi. **Flash −57.116 byte (%35.1 → %24.2)**,
+**RAM −1.992 byte (%23.1 → %20.1)**. Marlin mantığı değişmedi; kazancın tamamı
+derleyici/linker ayarlarından geliyor. Binary değişti → **yeniden flash gerekir**
+(`firmware.bin` 127.080 byte, SHA256 `974DDA75…1A75`).
+
+Tüm boyutlar `arm-none-eabi-nm --print-size` ile ölçüldü.
+
+### Removed — 57.116 byte flash
+
+- **C++ isim çözümleyici zinciri — 35.080 byte.**
+  libstdc++'ın varsayılan `std::terminate` işleyicisi
+  `__gnu_cxx::__verbose_terminate_handler()`, istisna tipini okunur yazmak için
+  `__cxa_demangle()` çağırıyordu. Bu tek referans libiberty'nin tüm
+  çözümleyicisini bağlıyordu (`d_print_comp` 11.448 B, `d_type` 2.020 B,
+  `cplus_demangle_operators`, … 44 sembol). Marlin istisna kullanmaz — kodun
+  tamamı erişilemezdi.
+  Çözüm: `Marlin/src/HAL/HAL_STM32F1/cxx_runtime_min.cpp` içinde kendi
+  işleyicimiz tanımlandı (Cortex-M3 sistem reset). Referans kalmayınca linker
+  arşiv üyelerini hiç çekmiyor.
+
+- **İstisna/unwind makinesi — 9.288 byte.**
+  `-fno-exceptions -fno-rtti -fno-unwind-tables -fno-asynchronous-unwind-tables`
+  **tek başına yetmedi** (flag'ler uygulandığı halde boyut değişmedi): asıl
+  bağlayıcı `__cxa_guard_acquire/release` referanslarıydı — bunlar libsupc++'ın
+  `eh_personality.o`'sunu, o da libgcc'nin ARM unwinder'ını çekiyordu.
+  `-fno-threadsafe-statics` ile guard'lar kalkınca `__gxx_personality_v0`,
+  `_Unwind_*`, `__gnu_unwind_*` ailesi tamamen düştü (66 sembol → 0).
+  `.ARM.exidx` 400 B → 8 B.
+
+- **Tam newlib → newlib-nano — 12.748 byte flash + 1.944 byte RAM.**
+  Link komutunda `--specs=nano.specs` **yoktu** (`pio run -v` ile doğrulandı),
+  yani tam newlib'e linkleniyorduk: `_svfprintf_r` + `_dtoa_r` + `_strtod_l` +
+  `_mprec` ailesi 16.088 B, newlib malloc 2.820 B.
+  `-u_printf_float` ile birlikte eklendi — `dtostrf()` üç kritik yolda
+  kullanıldığı için (`M114`, power-loss recovery G-code üretimi, DWIN pause
+  ekranı) `%f` desteği korunmak zorundaydı.
+
+- **`SERMOON_Z_LOCK_AUTO` — ölü özellik.**
+  `on_motion_start()`/`on_motion_end()` tanımlıydı ancak kod tabanında hiçbir
+  yerden çağrılmıyordu; planner/stepper hook'u hiç yazılmamıştı. Flag'i açmak
+  davranışı değiştirmiyordu. Flag, iki fonksiyon ve üç yerdeki yanıltıcı
+  dokümantasyon kaldırıldı.
+
+### Fixed
+
+- **`extra_scripts` sessizce eziliyordu.** `[env:creality]`'deki `extra_scripts`,
+  `[common]`'daki aynı isimli anahtarı eziyordu (hiçbir yer
+  `${common.extra_scripts}` interpolate etmiyor). Sonuç: `common-cxxflags.py`
+  **hiç çalışmıyordu** — `-Wno-register` dahil hiçbir C++ flag'i uygulanmıyordu.
+  Artık açıkça listeleniyor.
+
+- **`build_flags.py`'nin SCons `else:` dalı ölü koddu.** Dosya yalnızca
+  `!python ...` ile stdout üretmek için çağrılıyor; `extra_scripts`'te
+  listelenmediği için `Import("env")` dalı hiç çalışmıyordu. İçindeki
+  `-fno-threadsafe-statics`, `-fno-use-cxa-atexit`, `--specs=nano.specs`,
+  `-u_printf_float` **hiçbiri etkin değildi**. Hepsi `common-cxxflags.py`'ye
+  taşındı — orijinal niyet fiilen etkinleştirildi.
+
+- **`settings.cpp` sınır kontrolü yeniden etkin.** `sizeof(SettingsData)`
+  assert'i yorum satırıydı *ve* yanlıştı (`EEPROM_OFFSET`'i saymıyordu).
+  `PersistentStore::write_data()` sınır kontrolü yapmadığı için ayar bloğu
+  büyüdüğünde M500 sessizce `.bss`'i taşırırdı. Doğru form
+  (`EEPROM_OFFSET + sizeof(SettingsData) <= E2END + 1`) etkinleştirildi; mevcut
+  yapılandırmada geçiyor.
+
+### Documentation — ölçümle çelişen iddialar düzeltildi
+
+- **`backtrace` binary'de yok.** README onu "3.682 B, hardfault'ta stack trace
+  basar, ayıklamada değerli" diye listeliyordu. Ölçüm: `unwarm*`/`UnwReport*`
+  sembollerinin hiçbiri binary'de değil — kaynak derleniyor ama hiçbir fault
+  handler'dan çağrılmadığı için `--gc-sections` tamamını atmış.
+- **M500 ayarları SD kartta.** Bu kartta `EEPROM_SETTINGS`,
+  `persistent_store_sdcard.cpp` ile karşılanıyor (`eeprom.dat`), I2C EEPROM ile
+  değil. **SD kart takılı değilse M500 sessizce başarısız olur.** README bunu
+  hiç belirtmiyordu. BL24C16 yalnızca PLR + DWIN bayrakları + varlık kontrolü
+  için kullanılıyor.
+- "Ölü özellikler" tablosundaki diğer değerler yeniden ölçüldü
+  (`BEZIER_CURVE_SUPPORT` 197 B değil **898 B**).
+
+---
+
 ## [Sermoon-D1-2.2] — 2026-07-21
 
 Ölü kod temizliği. **Firmware davranışı değişmedi** — üretilen binary 2.1 ile
@@ -247,7 +590,8 @@ Kapsamlı optimizasyon paketi — Senior developer review sonucu uygulandı.
 
 - **README.md** — kullanım kolaylığı / performans tabloları güncellendi,
   Build Footprint gerçek değerlerle (Flash 186964 / RAM 15184)
-- **MANUAL.md** — Bowden/Direct drive çelişkisi giderildi (Sermoon D1 = Bowden)
+- ~~**MANUAL.md** — Bowden/Direct drive çelişkisi giderildi (Sermoon D1 = Bowden)~~
+  *(2026-07-24: bu karar yanlış yöndeydi — donanım **direct drive**; bkz. SD1-2.4 kaydı)*
 - **README.md** — LIN_ADVANCE K=0.22 yorumu → K=0.06 ile düzeltildi
 
 ### Build Footprint (Ölçüldü, `pio run -e creality`)
@@ -735,7 +1079,8 @@ modülerleştirme + yenilik backport + güvenlik iyileştirmeleri.
 - `HOMING_BACKOFF_MM { 2, 2, 2 }` — endstop koruması
 
 #### Print Kalitesi
-- `LIN_ADVANCE` — Bowden için kritik (K=0.22 default, kalibrasyon gerekir)
+- `LIN_ADVANCE` — köşe kalitesi için (K=0.22 default, kalibrasyon gerekir)
+  *(2026-07-24 notu: "Bowden için kritik" yazıyordu — donanım direct drive)*
 - `FWRETRACT` — firmware-side retraction (G10/G11)
 - `ADVANCED_PAUSE_FEATURE` — gelişmiş M600 (pause, park, unload, prompt)
 - `ADAPTIVE_STEP_SMOOTHING` — düşük hızlarda effective microstep doublelama

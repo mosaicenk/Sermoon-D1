@@ -8,8 +8,9 @@
  * çekimi etkisiyle kayma yapmasını önler.
  *
  * Mevcut firmware'de her iki pin sürekli HIGH tutulur (engaged state).
- * Bu modül kontrolü düzenli hale getirir, M888 ile manuel kontrole olanak
- * verir ve opsiyonel auto-mode (Z hareket sırasında release) sunar.
+ * Bu modül kontrolü düzenli hale getirir ve M888 ile manuel kontrole olanak
+ * verir. Otomatik (hareket-tetiklemeli) mod YOKTUR — bkz. Configuration_adv.h
+ * içindeki SERMOON_Z_LOCK_AUTO notu.
  *
  * Pin atamaları: pins/stm32/pins_CREALITY.h
  *   #define Z_KEEP_PIN_PB0   PB0   // OUT — board IN
@@ -31,11 +32,6 @@ public:
   static void engage();          // Z lock aktive (her iki pin HIGH)
   static void release();         // Z lock devre dışı (her iki pin LOW)
   static bool is_engaged() { return engaged; }
-
-  #if ENABLED(SERMOON_Z_LOCK_AUTO)
-    static void on_motion_start();   // Hareket başlamadan önce release
-    static void on_motion_end();     // Hareket bitiminden sonra engage
-  #endif
 
 private:
   static bool engaged;

@@ -36,17 +36,41 @@
  * NOT: DWIN ekran SOFTVERSION (= bu) ile FW_VERSION_TEXT_VP slot'unu doldurur,
  * ekran karakter alanı ~14 karakterle sınırlı; uzun string'ler kırpılabilir.
  */
-#define SHORT_BUILD_VERSION "MarlinV2 by CTK"
+// ###########################################################################
+// # UYARI — BU DOSYAYI DEGISTIRDIKTEN SONRA TEMIZ DERLEME SART.             #
+// #                                                                          #
+// # Bu dosya MarlinConfigPre.h:42'de MAKRO ile dahil ediliyor:               #
+// #     #include XSTR(../../CUSTOM_VERSION_FILE)                             #
+// # SCons'un C tarayicisi makro-genisletmeli include yolunu cozemez, bu      #
+// # yuzden Marlin/Version.h bagimlilik grafiginde YER ALMAZ.                 #
+// #                                                                          #
+// # OLCULDU (2026-07-27): burayi degistirip `pio run` calistirmak            #
+// # 0 birim derledi ve binary'yi degistirmedi. Temiz derlemede ayni          #
+// # degisiklik -8 byte uretti (127.120 -> 127.112).                          #
+// #                                                                          #
+// # SONUC: versiyonu yukseltip artimli derlerseniz firmware SESSIZCE ESKI    #
+// # surum dizesini tasir. Her zaman:                                         #
+// #     rm -rf .pio/build/creality && pio run -e creality                    #
+// ###########################################################################
+//
+// Fork sürümüyle AYNI tutulmalı: CHANGELOG.md başlığı, README "Versiyon"
+// satırı ve buradaki değer üçü birlikte güncellenir. Sahada hangi binary'nin
+// yüklü olduğu yalnızca buradan anlaşılır (M115 ve DWIN ekran bu değeri basar).
+//
+// Eski değer "MarlinV2 by CTK" idi: 15 karakter, yukarıdaki ~14 karakterlik
+// DWIN slot'unu aşıyordu (ekranda kırpılıyordu) ve hangi fork sürümünün
+// yüklü olduğunu söylemiyordu. Atıf DETAILED_BUILD_VERSION'a taşındı.
+#define SHORT_BUILD_VERSION "SD1-2.5"
 
 /**
  * Verbose version identifier — M115 yanıtında gösterilir.
  */
-#define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " (Sermoon D1, base V1.1.10)"
+#define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " (Sermoon D1 by CTK, base V1.1.10)"
 
 /**
  * The STRING_DISTRIBUTION_DATE represents when the binary file was built.
  */
-#define STRING_DISTRIBUTION_DATE "2026-07-21"
+#define STRING_DISTRIBUTION_DATE "2026-07-27"
 
 /**
  * Defines a generic printer name to be output to the LCD after booting Marlin.

@@ -35,13 +35,4 @@ void SermoonZLock::release() {
   engaged = false;
 }
 
-#if ENABLED(SERMOON_Z_LOCK_AUTO)
-
-  // Z hareket sırasında lock'ı disengage et, hareket bitince engage
-  // Auto mod default OFF — yalnız kullanıcı tarafından manuel test için.
-  void SermoonZLock::on_motion_start() { release(); }
-  void SermoonZLock::on_motion_end()   { engage();  }
-
-#endif
-
 #endif // SERMOON_Z_LOCK

@@ -63,10 +63,10 @@
 #endif
 
 //
-// LIN_ADVANCE Bowden setup hatırlatması
+// LIN_ADVANCE K kalibrasyon hatırlatması
 //
 #if ENABLED(LIN_ADVANCE)
-  #pragma message ">>> Note: LIN_ADVANCE active. Bowden Sermoon için K kalibre et (typ 0.4-0.9). See docs/lin_advance/."
+  #pragma message ">>> Note: LIN_ADVANCE active. Direct drive Sermoon için K kalibre et (typ 0.02-0.15). See docs/lin_advance/."
 #endif
 
 //

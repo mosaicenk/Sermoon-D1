@@ -22,9 +22,8 @@
  *   M888         -> "Z Lock: ENGAGED"
  *   M888 S0      -> "Z Lock: RELEASED"
  *
- * NOT: SERMOON_Z_LOCK_AUTO etkinse otomatik engage/release Z hareketleri
- * sırasında devreye girer. M888 ile manuel override mümkün; bir sonraki
- * Z hareketine kadar geçerlidir.
+ * Ayarlanan durum kalıcıdır — hiçbir otomatik mekanizma geri almaz.
+ * Boot'ta zlock.init() engage eder; sonrası tamamen manueldir.
  */
 void GcodeSuite::M888() {
   if (parser.seenval('S')) {

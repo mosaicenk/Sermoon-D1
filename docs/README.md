@@ -10,7 +10,7 @@ kalibrasyon rehberleri ve teknik referans dokümanlarını içerir.
 | Klasör | İçerik |
 |---|---|
 | **[`pid_tuning/`](pid_tuning/README.md)** | PID otomatik kalibrasyon (M303) — hotend ve yatak için doğru sıcaklık kontrolü |
-| **[`lin_advance/`](lin_advance/README.md)** | LIN_ADVANCE K kalibrasyonu (M900) — Bowden setup için köşe kalitesi |
+| **[`lin_advance/`](lin_advance/README.md)** | LIN_ADVANCE K kalibrasyonu (M900) — köşe kalitesi (direct drive, küçük K) |
 | **[`junction_deviation/`](junction_deviation/README.md)** | Junction Deviation kalibrasyonu (M205 J) — modern köşe-hız kontrolü |
 
 Her klasörde:

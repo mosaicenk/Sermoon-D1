@@ -35,7 +35,7 @@ v_max_corner = √( JUNCTION_DEVIATION_MM × acceleration × (1/sin(θ/2) - 1)�
 
 ## Kalibrasyon Aralık Tablosu
 
-Sermoon D1 (Bowden, kapalı kabin) için tipik değerler:
+Sermoon D1 (direct drive, kapalı kabin) için tipik değerler:
 
 | δ (mm) | Karakter | Print Süresi | Kalite |
 |---|---|---|---|

@@ -340,7 +340,25 @@ typedef struct SettingsDataStruct {
 
 } SettingsData;
 
-//static_assert(sizeof(SettingsData) <= E2END + 1, "EEPROM too small to contain SettingsData!");
+/**
+ * Ayar blogunun depoya sigdigini derleme zamaninda garanti et.
+ *
+ * Upstream'deki hali yorum satiriydi VE yanlisti: EEPROM_OFFSET'i hesaba
+ * katmadigi icin son 100 byte'lik tasmayi kacirirdi.
+ *
+ * Neden onemli: bu kart EEPROM_SETTINGS'i persistent_store_sdcard.cpp ile
+ * karsilar — veriler HAL_eeprom_data[E2END+1] adli .bss dizisine yazilir,
+ * sonra SD karta eeprom.dat olarak flush edilir. PersistentStore::write_data()
+ * HICBIR sinir kontrolu yapmaz:
+ *     HAL_eeprom_data[pos + i] = value[i];
+ * Dolayisiyla SettingsData buyudugunde M500 sessizce .bss'i tasirir ve
+ * komsu global degiskenleri bozar. Derleme zamaninda yakalamak tek savunma.
+ *
+ * Yazim EEPROM_OFFSET'ten baslar (settings.cpp icindeki eeprom_index).
+ */
+static_assert(EEPROM_OFFSET + sizeof(SettingsData) <= E2END + 1,
+  "SettingsData depoya sigmiyor: EEPROM_OFFSET + sizeof(SettingsData) > E2END+1. "
+  "Ozellik kapatin veya pins_CREALITY.h'daki E2END'i buyutun.");
 
 MarlinSettings settings;
 
