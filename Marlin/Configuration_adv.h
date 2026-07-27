@@ -593,7 +593,30 @@
 // için gantry'ye binen bileşik yük ortadan kalkar ve hangi eksenin
 // takıldığı belirsiz kalmaz.
 //#define QUICK_HOME                   // If homing includes X and Y, do a diagonal move initially
-#define HOMING_BACKOFF_MM { 2, 2, 2 }  // (mm) Move away from the endstops after homing
+/**
+ * SD1-2.8: X/Y backoff 2 → 0. Kullanıcı isteği: eksenler −10'da park etsin.
+ *
+ * −10 = X_MIN_POS/Y_MIN_POS = endstop trigger noktasının ta kendisi. Oraya
+ * park etmek, homing sonrası hiç geri çekilmemek demektir: homeaxis()
+ * içindeki `if (backoff_mm)` koşulu 0'da false olur ve geri çekme hareketi
+ * hiç üretilmez (motion.cpp:1686).
+ *
+ * Z'de 2 mm KORUNDU — istek yalnızca X/Y içindi.
+ *
+ * HAREKET AÇISINDAN GÜVENLİ, ölçüldü:
+ *   - ENDSTOPS_ALWAYS_ON_DEFAULT kapalı → endstop'lar yalnız homing
+ *     sırasında izleniyor; boşta basılı durmaları hareketi etkilemiyor.
+ *   - X_MIN/Y_MIN kontrolü endstops.cpp'de yalnız "−yön" dalında
+ *     (satır 711); endstop'tan uzaklaşan + hareket zaten tetiklemiyor.
+ *   - MIN_SOFTWARE_ENDSTOPS açık → −10'un altına inilemiyor.
+ *
+ * BEDELİ (kabul edildi):
+ *   - Anahtar boşta sürekli basılı kalır; kol/yay uzun vadede yorulur.
+ *   - M119 dinlenme konumunda daima `x_min: TRIGGERED` gösterir. Kopuk NC
+ *     kablosu da TRIGGERED verdiği için bu iki durum artık tek bakışta
+ *     ayırt edilemez (bkz. MANUAL §6.5).
+ */
+#define HOMING_BACKOFF_MM { 0, 0, 2 }  // (mm) Move away from the endstops after homing
 
 /**
  * IMPROVE_HOMING_RELIABILITY — homing süresince X/Y ivmesini geçici düşürür.

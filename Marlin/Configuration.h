@@ -1400,8 +1400,9 @@
    * X ve Y −8'de park etsin."
    *
    * Değerler X/Y homing'in bıraktığı konumun ta kendisi:
-   *   homeaxis() sonunda eksen X_MIN_POS/Y_MIN_POS = −10 sayılır,
-   *   ardından HOMING_BACKOFF_MM = 2 mm endstop'tan uzağa çekilir → −8.
+   *   homeaxis() sonunda eksen X_MIN_POS/Y_MIN_POS = −10 sayılır ve
+   *   SD1-2.8'den beri HOMING_BACKOFF_MM'in X/Y girdileri 0 olduğu için
+   *   geri çekme hareketi hiç üretilmez → eksen −10'da kalır.
    * Dolayısıyla home_z_safely()'nin do_blocking_move_to_xy() çağrısı
    * SIFIR UZUNLUKLU bir hareket olur — nozul hiçbir yere gitmez, X/Y
    * homing'in bıraktığı yerde kalır ve Z orada homelenir.
@@ -1413,12 +1414,14 @@
    * kalkarsa o komut Z'yi kafanın bulunduğu rastgele X/Y'de homeler.
    * Nokta değiştirmek istenen davranışı veriyor, korumayı ise koruyor.
    *
-   * Sabit 2, HOMING_BACKOFF_MM'in X/Y girdileriyle AYNI olmalı
-   * (o bir brace-list olduğu için önişlemciden indekslenemiyor).
-   * HOMING_BACKOFF_MM veya X_MIN_POS/Y_MIN_POS değişirse burası da değişmeli.
+   * Bu iki değer HOMING_BACKOFF_MM'in X/Y girdileriyle TUTARLI olmalı
+   * (o bir brace-list olduğu için önişlemciden indekslenemiyor). Backoff 0
+   * olduğu sürece doğru değer X_MIN_POS/Y_MIN_POS'un kendisidir; backoff
+   * tekrar sıfırdan farklı yapılırsa buraya aynı miktar eklenmelidir,
+   * aksi hâlde hareket sıfır uzunlukta olmaz ve nozul yer değiştirir.
    */
-  #define Z_SAFE_HOMING_X_POINT (X_MIN_POS + 2)       // −8: X homing'in bıraktığı nokta
-  #define Z_SAFE_HOMING_Y_POINT (Y_MIN_POS + 2)       // −8: Y homing'in bıraktığı nokta
+  #define Z_SAFE_HOMING_X_POINT X_MIN_POS             // −10: X homing'in bıraktığı nokta
+  #define Z_SAFE_HOMING_Y_POINT Y_MIN_POS             // −10: Y homing'in bıraktığı nokta
 #endif
 
 // Homing speeds (mm/m)

@@ -53,7 +53,7 @@ Bu firmware, Creality'nin orijinal Sermoon D1 V1.1.10 yazılımı üzerine Marli
 | ~~HYBRID_THRESHOLD~~ | Kapalı | **Hiç etkin olmadı** | `#if HAS_TRINAMIC` içinde → bu kartta derlenmiyor (§8) |
 | Z/E0 sürücü tipi | TMC2208 sanılıyordu | **HR4988SQ** (`A4988`) | SD1-2.4 — donanımla hizalandı |
 | `MINIMUM_STEPPER_*_DIR_DELAY` | 30 ns | **200 ns** | HR4988SQ gereği; 30 ns'de ters yönde adım riski |
-| Z_SAFE_HOMING | Kapalı | Açık | Z homing X/Y'den sonra zorunlu. Nokta SD1-2.7'de (145, 135) → **(−8, −8)** |
+| Z_SAFE_HOMING | Kapalı | Açık | Z homing X/Y'den sonra zorunlu. Nokta: (145, 135) → SD1-2.7 (−8, −8) → SD1-2.8 **(−10, −10)** |
 | HEATER_0_MINTEMP / BED_MINTEMP | 0 | 5 | Kopuk termistör koruması geri kazanıldı |
 | E2END | 0x800 (hatalı) | 0x7FF | 24C16 son geçerli adres — PLR taşmasını giderdi |
 | SERMOON_Z_LOCK | (kod dışı) | Açık, PB0+PB1 | M888 ile kontrol edilebilir Z lock modülü |
@@ -276,7 +276,7 @@ LIN_ADVANCE aktif, K kalibrasyonu hatırlatması.
 #define Y_HOME_BUMP_MM        5
 #define Z_HOME_BUMP_MM        2
 #define HOMING_BUMP_DIVISOR   { 2, 2, 4 }  // İkinci geçiş hız böleni
-#define HOMING_BACKOFF_MM     { 2, 2, 2 }  // Homing sonrası geri çekilme
+#define HOMING_BACKOFF_MM     { 0, 0, 2 }  // SD1-2.8: X/Y geri çekilmiyor
 //#define QUICK_HOME                     // SD1-2.7: KAPALI — X ve Y sırayla
 #define IMPROVE_HOMING_RELIABILITY       // Homing boyunca X/Y ivmesi → 100 mm/s²
 ```
@@ -301,9 +301,9 @@ Aşağıdaki değerler ölçülmüş yapılandırmadan türetilmiştir
       hızlı −450 mm @ 16,67 mm/s    (1.5 × max_length × yön)
       geri  +5 mm                    (X_HOME_BUMP_MM)
       yavaş −10 mm @ 8,33 mm/s       (bölen 2) ← gerçek sıfır burada
-      X = X_MIN_POS = −10, sonra backoff +2 → X = −8
-3. Y ekseni: aynı şablon, hızlı hamle −420 mm → Y = −8
-4. Z: (−8, −8)'e git — X/Y ZATEN ORADA, hareket sıfır uzunlukta
+      X = X_MIN_POS = −10, backoff 0 → geri çekme YOK → X = −10
+3. Y ekseni: aynı şablon, hızlı hamle −420 mm → Y = −10
+4. Z: (−10, −10)'a git — X/Y ZATEN ORADA, hareket sıfır uzunlukta
       240 mm/dk ile dokun, 2 mm bump, bölen 4 → 1 mm/s
       sonra Z_AFTER_HOMING = 0'a çık
 5. İvme orijinal değerine geri yüklenir
@@ -316,18 +316,20 @@ Aşağıdaki değerler ölçülmüş yapılandırmadan türetilmiştir
 
 ### 6.2b Homing sonrası nozul nerede duruyor?
 
-**SD1-2.7'den itibaren her durumda aynı: (−8, −8).**
+**SD1-2.8'den itibaren her durumda aynı: (−10, −10)** — yani endstop trigger noktasının kendisi.
 
 | Komut | Biten X | Biten Y |
 |---|---|---|
-| `G28` (tam) | **−8** | **−8** |
-| `G28 X Y` | **−8** | **−8** |
-| `G28 X` | **−8** | değişmez |
-| `G28 Y` | değişmez | **−8** |
+| `G28` (tam) | **−10** | **−10** |
+| `G28 X Y` | **−10** | **−10** |
+| `G28 X` | **−10** | değişmez |
+| `G28 Y` | değişmez | **−10** |
 
-`−8` şuradan gelir: `homeaxis()` sonunda eksen `X_MIN_POS`/`Y_MIN_POS` = **−10**
-kabul edilir, ardından `HOMING_BACKOFF_MM` = 2 mm endstop'tan uzağa çekilir
-→ −10 + 2 = **−8**. Tabla dışında olması tasarım gereğidir.
+`−10` şuradan gelir: `homeaxis()` sonunda eksen `X_MIN_POS`/`Y_MIN_POS` = **−10**
+kabul edilir. SD1-2.8'de `HOMING_BACKOFF_MM`'in X/Y girdileri **0** olduğu için
+`if (backoff_mm)` koşulu false kalır ve geri çekme hareketi hiç üretilmez
+(`motion.cpp:1686`) — eksen trigger noktasında durur. Tabla dışında olması
+tasarım gereğidir (SD1-2.7'de burada −8 vardı, backoff 2 mm idi).
 
 Tam `G28` de artık aynı noktada bitiyor çünkü `Z_SAFE_HOMING_X/Y_POINT`
 `(X_MIN_POS + 2)` / `(Y_MIN_POS + 2)` olarak tanımlandı — yani zaten
@@ -356,15 +358,15 @@ sıfır uzunluklu bir hareket üretiyor.
 
 ```cpp
 #define Z_SAFE_HOMING
-#define Z_SAFE_HOMING_X_POINT  (X_MIN_POS + 2)     // −8 mm  (SD1-2.7)
-#define Z_SAFE_HOMING_Y_POINT  (Y_MIN_POS + 2)     // −8 mm  (SD1-2.7)
+#define Z_SAFE_HOMING_X_POINT  X_MIN_POS           // −10 mm  (SD1-2.8)
+#define Z_SAFE_HOMING_Y_POINT  Y_MIN_POS           // −10 mm  (SD1-2.8)
 ```
 
 - Z homing sadece X/Y homing sonrası yapılabilir
 - Z home noktası = X/Y homing'in bıraktığı yer → **ek hareket yok**
 
 > **Makro AÇIK kalmalı, nokta değişti.** SD1-2.7'de istenen "tabla ortasına
-> gitmesin" davranışı, `Z_SAFE_HOMING`'i kapatarak değil **noktayı (−8, −8)
+> gitmesin" davranışı, `Z_SAFE_HOMING`'i kapatarak değil **noktayı (−10, −10)
 > yapararak** sağlandı. Sebep: bu makro aynı zamanda *"X ve Y homelenmeden Z
 > homelenemez"* korumasını taşıyor (`G28.cpp:128`, `axis_known_position`
 > kontrolü). DWIN ekranı `LCD_RTS.cpp:1459`'da tek başına `G28 Z0`
@@ -373,14 +375,51 @@ sıfır uzunluklu bir hareket üretiyor.
 > yerinde bırakır.
 >
 > ⚠️ **İlk katman kalibrasyonunu doğrulayın.** Z artık (145, 135) yerine
-> (−8, −8)'de homeleniyor. Z endstop'u gövdeye sabit mekanik bir switch
+> (−10, −10)'da homeleniyor. Z endstop'u gövdeye sabit mekanik bir switch
 > (PA7) olduğu için tetik yüksekliğinin X/Y'den bağımsız olması beklenir —
 > yani Z=0 referansının değişmemesi gerekir. **Bu firmware'den doğrulanamaz**,
 > switch'in nereye monte olduğuna bağlıdır. Flash sonrası kâğıt testiyle
 > teyit edin.
 >
-> ⚠️ **(−8, −8) tabla dışıdır.** Z inişinin o köşede takılacağı bir tabla
+> ⚠️ **(−10, −10) tabla dışıdır.** Z inişinin o köşede takılacağı bir tabla
 > klipsi, kablo veya şasi parçası olmadığını **elle** kontrol edin.
+
+### 6.5 Park konumunun teşhis üzerindeki etkisi (SD1-2.8)
+
+`HOMING_BACKOFF_MM`'in X/Y girdileri **0** olduğu için araba homing sonrası
+endstop **basılı** halde duruyor. Hareket açısından güvenli — ölçüldü:
+
+- `ENDSTOPS_ALWAYS_ON_DEFAULT` **kapalı** → endstop'lar yalnızca homing
+  sırasında izleniyor; boşta basılı olmaları normal hareketleri etkilemez.
+- `endstops.cpp:711`'deki X_MIN/Y_MIN kontrolü yalnız **−yön** dalında;
+  endstop'tan uzaklaşan `+` hareket zaten tetiklemez.
+- `MIN_SOFTWARE_ENDSTOPS` açık → −10'un altına inilemez.
+
+**Ama iki bedeli var:**
+
+| Etki | Ayrıntı |
+|---|---|
+| Mekanik yorulma | Anahtar kolu/yayı boşta sürekli baskı altında kalır |
+| **Teşhis belirsizliği** | `M119` dinlenme konumunda daima `x_min: TRIGGERED` verir |
+
+İkincisi önemli: endstop'lar **normalde-kapalı (NC)** bağlı
+(`ENDSTOPPULLUPS` + `*_ENDSTOP_INVERTING false` → tetik = pin HIGH = anahtar
+açık). **Kopuk bir endstop kablosu da TRIGGERED gösterir.** Park konumu da
+TRIGGERED olduğuna göre, artık "evinde duruyor" ile "kablosu kopmuş" tek
+bakışta ayırt edilemez.
+
+**Doğru teşhis yordamı:** önce ekseni endstop'tan uzaklaştır, sonra oku.
+
+```gcode
+G28 X            ; X'i homele
+G91              ; göreli mod
+G1 X20 F1000     ; endstop'tan 20 mm uzaklaş
+G90
+M119             ; ŞİMDİ oku → x_min: open  BEKLENIR
+```
+
+`open` gelmiyorsa endstop devresi arızalıdır (kopuk kablo, sıkışmış kol).
+Bu durumda homing sessizce yanlış orijin kabul eder ve baskı kaymış çıkar.
 
 ---
 
@@ -763,7 +802,7 @@ Beklenen çıktı:
 
 ```
 M851 Z0           ← Probe offset sıfırla
-G28               ← Home all (SD1-2.7: (−8, −8)'de biter, tabla ortasına GITMEZ)
+G28               ← Home all (SD1-2.8: (−10, −10)'da biter, tabla ortasına GITMEZ)
 G29               ← 4×4 grid prob yap
 M420 V            ← Mesh verisini göster
 ```

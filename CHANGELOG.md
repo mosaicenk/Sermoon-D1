@@ -8,6 +8,70 @@ Versiyonlama: Sermoon-D1-X.Y[-suffix] (X = major iyileştirme, Y = minor)
 
 ---
 
+## [Sermoon-D1-2.8] — 2026-07-27
+
+X/Y park noktası −8'den **−10'a** alındı (kullanıcı isteği). Flash −24 byte
+(126.888 → **126.864**, %24,2), RAM değişmedi (13.176). Binary değişti →
+**yeniden flash gerekir** (SHA256 `A9567E83…23DA`, 2026-07-27 derlemesi).
+
+### Changed
+
+- **`HOMING_BACKOFF_MM` `{ 2, 2, 2 }` → `{ 0, 0, 2 }`.**
+  −10 = `X_MIN_POS`/`Y_MIN_POS` = endstop trigger noktasının kendisi. Oraya
+  park etmek "homing sonrası hiç geri çekilme" demektir: `homeaxis()`
+  içindeki `if (backoff_mm)` koşulu 0'da false kalır ve geri çekme hareketi
+  hiç üretilmez (`motion.cpp:1686`). **Z'de 2 mm korundu** — istek yalnızca
+  X/Y içindi.
+
+- **`Z_SAFE_HOMING_X/Y_POINT` `(X_MIN_POS + 2)` → `X_MIN_POS`.**
+  Nokta, X/Y homing'in bıraktığı konumla aynı kalmalı ki
+  `home_z_safely()` içindeki `do_blocking_move_to_xy()` sıfır uzunlukta
+  kalsın. Backoff 0 olunca doğru değer `X_MIN_POS`'un kendisi.
+  Ölçüldü: `Z_SAFE_XY = -10 , -10`.
+  > İki ayar **birbirine bağlı**: `HOMING_BACKOFF_MM` tekrar sıfırdan farklı
+  > yapılırsa buraya aynı miktar eklenmelidir, aksi hâlde nozul G28 sonunda
+  > yer değiştirir. Not `Configuration.h`'a yazıldı.
+
+### Sonuç — G28 sonrası konum
+
+Her varyantta **(−10, −10)**: `G28`, `G28 X Y`, `G28 X`, `G28 Y`.
+(SD1-2.7'de −8, ondan önce tam `G28` için 145/135.)
+
+### Hareket açısından güvenli — ölçüldü
+
+Araba artık endstop **basılı** halde park ediyor. Kontrol edildi:
+
+| Kontrol | Sonuç |
+|---|---|
+| `ENDSTOPS_ALWAYS_ON_DEFAULT` | **OFF** → endstop'lar yalnız homing'de izleniyor |
+| `endstops.cpp:711` X_MIN kontrolü | yalnız **−yön** dalında; `+` hareket tetiklemiyor |
+| `MIN_SOFTWARE_ENDSTOPS` | açık → −10 altına inilemiyor |
+
+### Bedeli (kabul edildi, belgelendi)
+
+- **Mekanik:** anahtar kolu/yayı boşta sürekli baskı altında.
+- **Teşhis:** `M119` dinlenme konumunda daima `x_min: TRIGGERED` verir.
+  Endstop'lar NC bağlı olduğu için **kopuk kablo da TRIGGERED gösterir** —
+  yani "evinde" ile "arızalı" tek bakışta ayırt edilemez hâle geldi.
+  MANUAL'a **§6.5** eklendi: ekseni 20 mm uzaklaştırıp `M119` okuma yordamı.
+
+### Doğrulama
+
+| Adım | Sonuç |
+|---|---|
+| `#pragma message` — `Z_SAFE_XY` | `-10 , -10` |
+| `#pragma message` — `XY_MIN_POS` | `-10 , -10` |
+| `#pragma message` — `ENDSTOPS_ALWAYS_ON` | `OFF` |
+| Temiz derleme | 126.864 B / 13.176 B, proje kodunda 0 uyarı |
+| Binary sürüm dizesi | `SD1-2.8` |
+
+> ⚠️ **DONANIMDA DOĞRULANMADI.** SD1-2.7'nin iki elle kontrolü hâlâ geçerli
+> ve artık 2 mm daha kritik: (−10, −10) tabla dışıdır ve araba endstop'a
+> tam dayanmış durumdadır. Z inişinin o köşede takılacağı bir şey olmadığını
+> ve mekanik strok sonunda sıkışma olmadığını doğrulayın.
+
+---
+
 ## [Sermoon-D1-2.7] — 2026-07-27
 
 X/Y homing davranışı kullanıcı isteğiyle değiştirildi: **eksenler sırayla

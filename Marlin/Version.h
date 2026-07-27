@@ -60,7 +60,7 @@
 // Eski değer "MarlinV2 by CTK" idi: 15 karakter, yukarıdaki ~14 karakterlik
 // DWIN slot'unu aşıyordu (ekranda kırpılıyordu) ve hangi fork sürümünün
 // yüklü olduğunu söylemiyordu. Atıf DETAILED_BUILD_VERSION'a taşındı.
-#define SHORT_BUILD_VERSION "SD1-2.7"
+#define SHORT_BUILD_VERSION "SD1-2.8"
 
 /**
  * Verbose version identifier — M115 yanıtında gösterilir.
