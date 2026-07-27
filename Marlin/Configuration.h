@@ -650,7 +650,7 @@
 //
 // _STANDALONE suffix (X/Y): firmware does NOT talk to the drive. HAS_TRINAMIC false
 // remains → M906/M569/M122/M350 and no sensorless homing, with current potentiometer
-// is set. Same for HR4988SQ — current is set via Vref pot.
+// job set Same for HR4988SQ — current is set via Vref pot.
 //
 // TWO GLOBAL SIDE EFFECTS OF MIXED CONFIGURATION (Marlin uses these macros as axis
 // produces a single value across the card rather than on a per-card basis):
@@ -680,7 +680,7 @@
 // means independent driver with set; There is no such hardware here).
 // Parallel connection is critical for the driver: since the two windings are parallel
 // The equivalent impedance is halved and the current delivered by the driver is DIVIDED between the two motors.
-// To get the same torque per motor, Vref is twice that of a single motor setup.
+// To get the same torque per engine, Vref is twice that of a single engine setup.
 // must be adjusted to correspond to the flow. HR4988SQ to TMC2208 at this point
 // It gets noticeably hotter than before — cooling is a must, details in the README.
 #define Z_DRIVER_TYPE  A4988
@@ -1377,7 +1377,7 @@
 //#define MANUAL_X_HOME_POS 0
 //#define MANUAL_Y_HOME_POS 0
 // SD1-1.3: Increase the Z=0 reference by 1 mm for the end of the range of table adjustment screws.
-// swipe. The mechanical Z trigger is now coordinate Z=-1, 1 mm above the Z=0 trigger.
+// swipe The mechanical Z trigger is now coordinate Z=-1, 1 mm above the Z=0 trigger.
 // Workaround for bed leveling clearance issue — permanent, valid even after M502.
 #define MANUAL_Z_HOME_POS -1
 
@@ -1414,7 +1414,7 @@
    * If it is removed, that command will home Z at random X/Y where the head is located.
    * Changing the point gives the desired behavior and preserves the protection.
    *
-   * These two values ​​must be CONSISTENT with the X/Y entries of HOMING_BACKOFF_MM
+   * These two values ​​​​must be CONSISTENT with the X/Y entries of HOMING_BACKOFF_MM
    * (it cannot be indexed from the preprocessor because it is a brace-list). Backoff 0
    * as long as , the correct value is X_MIN_POS/Y_MIN_POS itself; back off
    * If it is made other than zero again, the same amount should be added here,
