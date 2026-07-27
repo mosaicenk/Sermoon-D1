@@ -3,7 +3,7 @@
 Creality **Sermoon D1** kapalı kabin 3D yazıcısı için Marlin 2.0.x bugfix
 tabanlı, modülerleştirilmiş ve genişletilmiş firmware.
 
-**Versiyon**: `SD1-2.8` (base: stock Creality V1.1.10)
+**Versiyon**: `SD1-2.9` (base: stock Creality V1.1.10)
 **Build hedefi**: Creality V4.3.1 anakart (STM32F103RET6) — **tek hedef, başka kart desteklenmez**
 **Son güncelleme**: 2026-07-27
 
@@ -171,7 +171,7 @@ yok). Bu varsayım yanlışsa steps/mm aynı oranda değişir (örn. 8x → Z=20
 | Maks. ivme (mm/s²) | 800, 800, 100, 5000 |
 | Yazdırma ivmesi | 500 mm/s² |
 | Travel ivmesi | 800 mm/s² |
-| Köşe-hız kontrolü | `JUNCTION_DEVIATION` 0.013 — **`CLASSIC_JERK` kapalı**, jerk değerleri kullanılmıyor |
+| Köşe-hız kontrolü | `JUNCTION_DEVIATION` 0.015 — **`CLASSIC_JERK` kapalı**, jerk değerleri kullanılmıyor |
 | Yön invert | X=true, Y/Z/E=false |
 | Homing yönü | X=MIN, Y=MIN, Z=MIN |
 
@@ -223,7 +223,7 @@ Configuration aktivasyonları:
 
 ### Güvenlik
 - `NO_TIMEOUTS 1000` — host bağlantı kararlılığı
-- `HOMING_BACKOFF_MM { 0, 0, 2 }` — SD1-2.8: X/Y geri çekilmiyor, −10'da park
+- `HOMING_BACKOFF_MM { 1, 1, 2 }` — SD1-2.9: X/Y 1 mm geri çekilir, −9'da park
 - `NO_MOTION_BEFORE_HOMING` — home edilmeden hareket engelleme
 - `Z_HOMING_HEIGHT 4` — home öncesi Z+4mm yukarı
 
@@ -231,7 +231,7 @@ Configuration aktivasyonları:
 - `LIN_ADVANCE` (K=0.06, **kalibrasyon şart** — direct drive için 0.02-0.15 tipik)
 - `FWRETRACT` (G10/G11 — slicer-bağımsız retraction)
 - `S_CURVE_ACCELERATION` — sigmoid hız profili
-- `JUNCTION_DEVIATION` (0.013) — CLASSIC_JERK yerine modern köşe-hız kontrolü
+- `JUNCTION_DEVIATION` (0.015) — CLASSIC_JERK yerine modern köşe-hız kontrolü
 - `ADVANCED_PAUSE_FEATURE` (M600 gelişmiş)
 - `ADAPTIVE_STEP_SMOOTHING` — düşük hızda effective microstep doublelama
 - `MINIMUM_STEPPER_PULSE 1` (TMC2208 için)

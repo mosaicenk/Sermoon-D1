@@ -844,9 +844,9 @@
  */
 #if DISABLED(CLASSIC_JERK)
   // Lower JD = slower corner entry/exit = less vibration = better surface quality.
-  // 0.013 is production-quality for Cartesian with heavy gantry (Sermoon D1).
-  // User can increase to 0.02 via M205 J for draft/fast prints.
-  #define JUNCTION_DEVIATION_MM 0.013
+  // 0.015 is optimized for general print performance on Sermoon D1.
+  // User can change via M205 J.
+  #define JUNCTION_DEVIATION_MM 0.015
 #endif
 
 /**
@@ -1420,8 +1420,8 @@
    * tekrar sıfırdan farklı yapılırsa buraya aynı miktar eklenmelidir,
    * aksi hâlde hareket sıfır uzunlukta olmaz ve nozul yer değiştirir.
    */
-  #define Z_SAFE_HOMING_X_POINT X_MIN_POS             // −10: X homing'in bıraktığı nokta
-  #define Z_SAFE_HOMING_Y_POINT Y_MIN_POS             // −10: Y homing'in bıraktığı nokta
+  #define Z_SAFE_HOMING_X_POINT (X_MIN_POS + 1)         // −9: X homing'in bıraktığı nokta (backoff 1mm)
+  #define Z_SAFE_HOMING_Y_POINT (Y_MIN_POS + 1)         // −9: Y homing'in bıraktığı nokta (backoff 1mm)
 #endif
 
 // Homing speeds (mm/m)

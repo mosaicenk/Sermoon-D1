@@ -580,7 +580,8 @@
 #define Z_HOME_BUMP_MM 2
 // SD1-1.2: Z slow pass divisor 1 → 4 → Z slow pass 4 mm/s yerine 1 mm/s.
 // Paralel bağlı 2 Z motorunun endstop'a tutarlı eş-konumlu trigger'ı için.
-#define HOMING_BUMP_DIVISOR { 2, 2, 4 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
+// SD1-2.9: X/Y slow pass divisor 2 -> 4 (X/Y re-bump 8.3 mm/s yerine 4.1 mm/s - daha yüksek tekrarlanabilirlik)
+#define HOMING_BUMP_DIVISOR { 4, 4, 4 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
 // SD1-2.7: QUICK_HOME KAPATILDI — kullanıcı isteği: X ve Y sırayla homelensin.
 //
 // Açıkken G28, X ve Y'yi tek çapraz hamleyle aynı anda iki endstop'a sürüyordu
@@ -594,29 +595,10 @@
 // takıldığı belirsiz kalmaz.
 //#define QUICK_HOME                   // If homing includes X and Y, do a diagonal move initially
 /**
- * SD1-2.8: X/Y backoff 2 → 0. Kullanıcı isteği: eksenler −10'da park etsin.
- *
- * −10 = X_MIN_POS/Y_MIN_POS = endstop trigger noktasının ta kendisi. Oraya
- * park etmek, homing sonrası hiç geri çekilmemek demektir: homeaxis()
- * içindeki `if (backoff_mm)` koşulu 0'da false olur ve geri çekme hareketi
- * hiç üretilmez (motion.cpp:1686).
- *
- * Z'de 2 mm KORUNDU — istek yalnızca X/Y içindi.
- *
- * HAREKET AÇISINDAN GÜVENLİ, ölçüldü:
- *   - ENDSTOPS_ALWAYS_ON_DEFAULT kapalı → endstop'lar yalnız homing
- *     sırasında izleniyor; boşta basılı durmaları hareketi etkilemiyor.
- *   - X_MIN/Y_MIN kontrolü endstops.cpp'de yalnız "−yön" dalında
- *     (satır 711); endstop'tan uzaklaşan + hareket zaten tetiklemiyor.
- *   - MIN_SOFTWARE_ENDSTOPS açık → −10'un altına inilemiyor.
- *
- * BEDELİ (kabul edildi):
- *   - Anahtar boşta sürekli basılı kalır; kol/yay uzun vadede yorulur.
- *   - M119 dinlenme konumunda daima `x_min: TRIGGERED` gösterir. Kopuk NC
- *     kablosu da TRIGGERED verdiği için bu iki durum artık tek bakışta
- *     ayırt edilemez (bkz. MANUAL §6.5).
+ * SD1-2.9: X/Y backoff 0 -> 1. Switch'in yayını sürekli baskıda bırakmamak
+ * ve M119 ile kopuk kablo/park ayrımını yapabilmek için 1 mm geri çekilme.
  */
-#define HOMING_BACKOFF_MM { 0, 0, 2 }  // (mm) Move away from the endstops after homing
+#define HOMING_BACKOFF_MM { 1, 1, 2 }  // (mm) Move away from the endstops after homing
 
 /**
  * IMPROVE_HOMING_RELIABILITY — homing süresince X/Y ivmesini geçici düşürür.

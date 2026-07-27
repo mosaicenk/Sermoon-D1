@@ -8,6 +8,30 @@ Versiyonlama: Sermoon-D1-X.Y[-suffix] (X = major iyileştirme, Y = minor)
 
 ---
 
+## [Sermoon-D1-2.9] — 2026-07-27
+
+Homing duyarlılığı, mekanik switch ömrü ve köşe geçiş kalitesi optimizasyonları. Flash +24 byte
+(126.864 → **126.888**, %24,2), RAM değişmedi (13.176). Binary değişti →
+**yeniden flash gerekir**.
+
+### Changed
+
+- **`JUNCTION_DEVIATION_MM` `0.013` → `0.015`.**
+  Sermoon D1 baskı performansını artırmak için varsayılan JD değeri 0.015 olarak ayarlandı.
+
+- **`HOMING_BUMP_DIVISOR` `{ 2, 2, 4 }` → `{ 4, 4, 4 }`.**
+  X ve Y eksenlerinde 2. yavaş dokunma hızı 8.3 mm/s'den 4.1 mm/s'ye düşürüldü.
+  Limit switch mekanik esnemesi azaltılarak homing tekrarlanabilirliği mikron seviyesinde artırıldı.
+
+- **`HOMING_BACKOFF_MM` `{ 0, 0, 2 }` → `{ 1, 1, 2 }`.**
+  Homing sonrası X ve Y eksenlerinde 1 mm geri çekilme eklendi. Switch yayının sürekli
+  basılı kalması engellenerek mekanik ömrü uzatıldı ve `M119` ile kopuk kablo / park ayrımı düzeltildi.
+
+- **`Z_SAFE_HOMING_X/Y_POINT` `X_MIN_POS` → `(X_MIN_POS + 1)` = `(-9, -9)`.**
+  Backoff (1 mm) ile tam uyumlu kılınarak Z homing öncesinde X/Y hareketsiz park noktasında bırakıldı.
+
+---
+
 ## [Sermoon-D1-2.8] — 2026-07-27
 
 X/Y park noktası −8'den **−10'a** alındı (kullanıcı isteği). Flash −24 byte

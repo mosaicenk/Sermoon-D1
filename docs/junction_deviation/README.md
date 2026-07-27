@@ -26,10 +26,10 @@ v_max_corner = √( JUNCTION_DEVIATION_MM × acceleration × (1/sin(θ/2) - 1)�
 
 ## Mevcut Ayar
 
-`Configuration.h:756`:
+`Configuration.h:849`:
 ```c
 #if DISABLED(CLASSIC_JERK)
-  #define JUNCTION_DEVIATION_MM 0.013   // (mm) Default — Cartesian Sermoon için iyi
+  #define JUNCTION_DEVIATION_MM 0.015   // (mm) Default — Cartesian Sermoon D1 için varsayılan
 #endif
 ```
 
@@ -41,8 +41,9 @@ Sermoon D1 (direct drive, kapalı kabin) için tipik değerler:
 |---|---|---|---|
 | 0.003 | Aşırı sıkı | +%15 yavaş | Mükemmel ama gereksiz |
 | 0.005 | Çok sıkı | +%10 | Yüksek detay |
-| 0.008 | Sıkı | +%5 | Hassas geometriler |
-| **0.013** | **DEFAULT** | Baseline | İyi denge |
+| 0.008 | Sıkı | +%5 | Hassas geometriler, keskin köşeler |
+| 0.013 | Üretim dengesi | Baseline | İyi denge |
+| **0.015** | **DEFAULT** | Hızlı | Yüksek hız ve performans dengesi |
 | 0.020 | Gevşek | -%5 hızlı | Hafif yumuşama |
 | 0.025 | Çok gevşek | -%10 | Belirgin yuvarlanma |
 | > 0.030 | Önerilmez | — | Köşe overshoot riski |

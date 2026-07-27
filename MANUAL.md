@@ -275,8 +275,8 @@ LIN_ADVANCE aktif, K kalibrasyonu hatırlatması.
 #define X_HOME_BUMP_MM        5        // İkinci dokunma mesafesi
 #define Y_HOME_BUMP_MM        5
 #define Z_HOME_BUMP_MM        2
-#define HOMING_BUMP_DIVISOR   { 2, 2, 4 }  // İkinci geçiş hız böleni
-#define HOMING_BACKOFF_MM     { 0, 0, 2 }  // SD1-2.8: X/Y geri çekilmiyor
+#define HOMING_BUMP_DIVISOR   { 4, 4, 4 }  // SD1-2.9: İkinci geçiş hız böleni (X/Y/Z)
+#define HOMING_BACKOFF_MM     { 1, 1, 2 }  // SD1-2.9: X/Y 1mm geri çekilir
 //#define QUICK_HOME                     // SD1-2.7: KAPALI — X ve Y sırayla
 #define IMPROVE_HOMING_RELIABILITY       // Homing boyunca X/Y ivmesi → 100 mm/s²
 ```
@@ -453,13 +453,13 @@ Bu durumda homing sessizce yanlış orijin kabul eder ve baskı kaymış çıkar
 ### 7.3 Junction Deviation
 
 ```cpp
-#define JUNCTION_DEVIATION_MM 0.013
+#define JUNCTION_DEVIATION_MM 0.015
 ```
 
 - Classic Jerk yerine modern adaptif köşe hızı algoritması
 - Köşe açısına göre otomatik hız azaltma
 - `DEFAULT_EJERK 5.0` — Ekstruder jerk (her iki modda da aktif)
-- Değer 0.013 — Sermoon D1 boyutları için optimize
+- Değer 0.015 — Sermoon D1 boyutları için optimize
 
 ### 7.4 Planner Parametreleri
 
