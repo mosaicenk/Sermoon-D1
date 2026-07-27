@@ -581,7 +581,18 @@
 // SD1-1.2: Z slow pass divisor 1 → 4 → Z slow pass 4 mm/s yerine 1 mm/s.
 // Paralel bağlı 2 Z motorunun endstop'a tutarlı eş-konumlu trigger'ı için.
 #define HOMING_BUMP_DIVISOR { 2, 2, 4 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
-#define QUICK_HOME                     // If homing includes X and Y, do a diagonal move initially
+// SD1-2.7: QUICK_HOME KAPATILDI — kullanıcı isteği: X ve Y sırayla homelensin.
+//
+// Açıkken G28, X ve Y'yi tek çapraz hamleyle aynı anda iki endstop'a sürüyordu
+// (hedef (−450, −420), hız 22,8 mm/s). Kapalıyken G28.cpp'deki sıra geçerli:
+// önce X (HOME_Y_BEFORE_X kapalı), sonra Y — her biri kendi hızlı geçiş +
+// 5 mm bump + yavaş geçiş döngüsünü ayrı ayrı yapar.
+//
+// Bedeli süre: çapraz tek tarama yerine iki ayrı tam tarama. Uzak köşeden
+// kabaca 2 katı (hesap; ölçülmedi). Kazancı: iki eksen aynı anda dayanmadığı
+// için gantry'ye binen bileşik yük ortadan kalkar ve hangi eksenin
+// takıldığı belirsiz kalmaz.
+//#define QUICK_HOME                   // If homing includes X and Y, do a diagonal move initially
 #define HOMING_BACKOFF_MM { 2, 2, 2 }  // (mm) Move away from the endstops after homing
 
 /**

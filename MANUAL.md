@@ -53,7 +53,7 @@ Bu firmware, Creality'nin orijinal Sermoon D1 V1.1.10 yazılımı üzerine Marli
 | ~~HYBRID_THRESHOLD~~ | Kapalı | **Hiç etkin olmadı** | `#if HAS_TRINAMIC` içinde → bu kartta derlenmiyor (§8) |
 | Z/E0 sürücü tipi | TMC2208 sanılıyordu | **HR4988SQ** (`A4988`) | SD1-2.4 — donanımla hizalandı |
 | `MINIMUM_STEPPER_*_DIR_DELAY` | 30 ns | **200 ns** | HR4988SQ gereği; 30 ns'de ters yönde adım riski |
-| Z_SAFE_HOMING | Kapalı | Açık | G28'de Z, tabla ortasında (145, 135) home edilir |
+| Z_SAFE_HOMING | Kapalı | Açık | Z homing X/Y'den sonra zorunlu. Nokta SD1-2.7'de (145, 135) → **(−8, −8)** |
 | HEATER_0_MINTEMP / BED_MINTEMP | 0 | 5 | Kopuk termistör koruması geri kazanıldı |
 | E2END | 0x800 (hatalı) | 0x7FF | 24C16 son geçerli adres — PLR taşmasını giderdi |
 | SERMOON_Z_LOCK | (kod dışı) | Açık, PB0+PB1 | M888 ile kontrol edilebilir Z lock modülü |
@@ -277,7 +277,7 @@ LIN_ADVANCE aktif, K kalibrasyonu hatırlatması.
 #define Z_HOME_BUMP_MM        2
 #define HOMING_BUMP_DIVISOR   { 2, 2, 4 }  // İkinci geçiş hız böleni
 #define HOMING_BACKOFF_MM     { 2, 2, 2 }  // Homing sonrası geri çekilme
-#define QUICK_HOME                       // X+Y aynı anda home
+//#define QUICK_HOME                     // SD1-2.7: KAPALI — X ve Y sırayla
 #define IMPROVE_HOMING_RELIABILITY       // Homing boyunca X/Y ivmesi → 100 mm/s²
 ```
 
@@ -297,22 +297,50 @@ Aşağıdaki değerler ölçülmüş yapılandırmadan türetilmiştir
 ```
 0. X/Y ivmesi geçici 100 mm/s²'ye çekilir     (IMPROVE_HOMING_RELIABILITY)
 1. Z, Z_HOMING_HEIGHT = 4 mm kaldırılır       (X/Y'den ÖNCE, çarpma payı)
-2. QUICK_HOME — tek çapraz hamle:
-      hedef (−450, −420) = 1.5 × max_length × yön
-      hız   22,8 mm/s    = 16,67 × √((280/300)² + 1)
-      → X ve Y endstop'larına aynı anda dayanır
-3. X ekseni (HOME_Y_BEFORE_X kapalı → X önce):
-      hızlı −450 mm @ 16,67 mm/s   (endstop zaten basılı, anında biter)
-      geri  +5 mm                   (X_HOME_BUMP_MM)
-      yavaş −10 mm @ 8,33 mm/s      (bölen 2) ← gerçek sıfır burada
+2. X ekseni (HOME_Y_BEFORE_X kapalı → X önce):
+      hızlı −450 mm @ 16,67 mm/s    (1.5 × max_length × yön)
+      geri  +5 mm                    (X_HOME_BUMP_MM)
+      yavaş −10 mm @ 8,33 mm/s       (bölen 2) ← gerçek sıfır burada
       X = X_MIN_POS = −10, sonra backoff +2 → X = −8
-4. Y ekseni: aynı şablon (hızlı hamle −420 mm) → Y = −8
-5. Z: (145, 135)'e git, 240 mm/dk ile dokun, 2 mm bump, bölen 4 → 1 mm/s
-6. İvme orijinal değerine geri yüklenir
+3. Y ekseni: aynı şablon, hızlı hamle −420 mm → Y = −8
+4. Z: (−8, −8)'e git — X/Y ZATEN ORADA, hareket sıfır uzunlukta
+      240 mm/dk ile dokun, 2 mm bump, bölen 4 → 1 mm/s
+      sonra Z_AFTER_HOMING = 0'a çık
+5. İvme orijinal değerine geri yüklenir
 ```
 
-> **G28 sonrası nozul (−8, −8) konumundadır** — tabla dışında, her iki eksende
-> 8 mm. `X_MIN_POS`/`Y_MIN_POS` = −10 olduğu için bu tasarım gereğidir.
+> **SD1-2.7'de değişti.** Önceki sürümlerde adım 2'nin yerinde `QUICK_HOME`
+> vardı: X ve Y tek çapraz hamleyle (hedef (−450, −420), hız 22,8 mm/s)
+> aynı anda iki endstop'a dayanıyordu. Artık kapalı — iki eksen sırayla
+> homeleniyor. Adım 4 de eskiden tabla ortasına (145, 135) gidiyordu.
+
+### 6.2b Homing sonrası nozul nerede duruyor?
+
+**SD1-2.7'den itibaren her durumda aynı: (−8, −8).**
+
+| Komut | Biten X | Biten Y |
+|---|---|---|
+| `G28` (tam) | **−8** | **−8** |
+| `G28 X Y` | **−8** | **−8** |
+| `G28 X` | **−8** | değişmez |
+| `G28 Y` | değişmez | **−8** |
+
+`−8` şuradan gelir: `homeaxis()` sonunda eksen `X_MIN_POS`/`Y_MIN_POS` = **−10**
+kabul edilir, ardından `HOMING_BACKOFF_MM` = 2 mm endstop'tan uzağa çekilir
+→ −10 + 2 = **−8**. Tabla dışında olması tasarım gereğidir.
+
+Tam `G28` de artık aynı noktada bitiyor çünkü `Z_SAFE_HOMING_X/Y_POINT`
+`(X_MIN_POS + 2)` / `(Y_MIN_POS + 2)` olarak tanımlandı — yani zaten
+bulunulan yer. `home_z_safely()` içindeki `do_blocking_move_to_xy()` çağrısı
+sıfır uzunluklu bir hareket üretiyor.
+
+> **Önceki sürümlerde tam `G28` (145, 135)'te bitiyordu.** Slicer start
+> G-code'unuz veya makrolarınız G28 sonrası nozulun tabla ortasında olduğunu
+> varsayıyorsa gözden geçirin.
+
+> **Karıştırmayın:** `NOZZLE_PARK_POINT` = `{ X_MIN_POS+10, Y_MAX_POS−10, 20 }`
+> = **(0, 260, 20)** homing'le ilgisizdir. O, `NOZZLE_PARK_FEATURE`'ın
+> duraklama/filament değişimi park noktasıdır (M125, M600), G28 onu kullanmaz.
 
 ### 6.3 Z Home Offset
 
@@ -328,21 +356,31 @@ Aşağıdaki değerler ölçülmüş yapılandırmadan türetilmiştir
 
 ```cpp
 #define Z_SAFE_HOMING
-#define Z_SAFE_HOMING_X_POINT  ((X_BED_SIZE) / 2)  // 145 mm
-#define Z_SAFE_HOMING_Y_POINT  ((Y_BED_SIZE) / 2)  // 135 mm
+#define Z_SAFE_HOMING_X_POINT  (X_MIN_POS + 2)     // −8 mm  (SD1-2.7)
+#define Z_SAFE_HOMING_Y_POINT  (Y_MIN_POS + 2)     // −8 mm  (SD1-2.7)
 ```
 
 - Z homing sadece X/Y homing sonrası yapılabilir
-- Z home öncesi tabla ortasına (145, 135) gider
+- Z home noktası = X/Y homing'in bıraktığı yer → **ek hareket yok**
 
-> **Probe olmadan da anlamlı.** Z_SAFE_HOMING başlangıçta probe güvenliği için
-> eklenmişti, ancak probe kaldırıldıktan sonra da faydası sürüyor: nozul köşe
-> yerine tablanın ortasında iniyor (köşe klipsi/yüzey bozukluğu riski yok) ve
-> Z=0 referansı her G28'de aynı X/Y noktasında ölçülüyor — tabla tam düz
-> olmadığında bu tekrarlanabilirlik demektir.
+> **Makro AÇIK kalmalı, nokta değişti.** SD1-2.7'de istenen "tabla ortasına
+> gitmesin" davranışı, `Z_SAFE_HOMING`'i kapatarak değil **noktayı (−8, −8)
+> yapararak** sağlandı. Sebep: bu makro aynı zamanda *"X ve Y homelenmeden Z
+> homelenemez"* korumasını taşıyor (`G28.cpp:128`, `axis_known_position`
+> kontrolü). DWIN ekranı `LCD_RTS.cpp:1459`'da tek başına `G28 Z0`
+> gönderebiliyor; koruma kalkarsa o komut Z'yi kafanın bulunduğu **rastgele**
+> X/Y konumunda homeler. Noktayı taşımak istenen sonucu verir, korumayı ise
+> yerinde bırakır.
 >
-> **Kapatmayın** — kapatmak Z=0 referansını değiştirir ve ilk katman
-> yüksekliğinizin yeniden kalibrasyonunu gerektirir.
+> ⚠️ **İlk katman kalibrasyonunu doğrulayın.** Z artık (145, 135) yerine
+> (−8, −8)'de homeleniyor. Z endstop'u gövdeye sabit mekanik bir switch
+> (PA7) olduğu için tetik yüksekliğinin X/Y'den bağımsız olması beklenir —
+> yani Z=0 referansının değişmemesi gerekir. **Bu firmware'den doğrulanamaz**,
+> switch'in nereye monte olduğuna bağlıdır. Flash sonrası kâğıt testiyle
+> teyit edin.
+>
+> ⚠️ **(−8, −8) tabla dışıdır.** Z inişinin o köşede takılacağı bir tabla
+> klipsi, kablo veya şasi parçası olmadığını **elle** kontrol edin.
 
 ---
 
@@ -725,7 +763,7 @@ Beklenen çıktı:
 
 ```
 M851 Z0           ← Probe offset sıfırla
-G28               ← Home all (Z_SAFE_HOMING → tabla ortasına gider)
+G28               ← Home all (SD1-2.7: (−8, −8)'de biter, tabla ortasına GITMEZ)
 G29               ← 4×4 grid prob yap
 M420 V            ← Mesh verisini göster
 ```

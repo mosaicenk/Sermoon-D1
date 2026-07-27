@@ -1393,8 +1393,32 @@
 #define Z_SAFE_HOMING  // Probe bed dışındayken Z home yapmasını engelle
 
 #if ENABLED(Z_SAFE_HOMING)
-  #define Z_SAFE_HOMING_X_POINT ((X_BED_SIZE) / 2)    // X point for Z homing when homing all axes (G28).
-  #define Z_SAFE_HOMING_Y_POINT ((Y_BED_SIZE) / 2)    // Y point for Z homing when homing all axes (G28).
+  /**
+   * SD1-2.7: Z home noktası tabla ortasından HOMING PARK NOKTASINA alındı.
+   *
+   * İstek: "homing sonrası iki eksen tabla ortasına gidiyor, gitmesinler;
+   * X ve Y −8'de park etsin."
+   *
+   * Değerler X/Y homing'in bıraktığı konumun ta kendisi:
+   *   homeaxis() sonunda eksen X_MIN_POS/Y_MIN_POS = −10 sayılır,
+   *   ardından HOMING_BACKOFF_MM = 2 mm endstop'tan uzağa çekilir → −8.
+   * Dolayısıyla home_z_safely()'nin do_blocking_move_to_xy() çağrısı
+   * SIFIR UZUNLUKLU bir hareket olur — nozul hiçbir yere gitmez, X/Y
+   * homing'in bıraktığı yerde kalır ve Z orada homelenir.
+   *
+   * NEDEN Z_SAFE_HOMING TAMAMEN KAPATILMADI: bu makro aynı zamanda
+   * "X ve Y homelenmeden Z homelenemez" korumasını sağlıyor
+   * (G28.cpp:128 axis_known_position kontrolü). DWIN ekranı
+   * LCD_RTS.cpp:1459'da tek başına `G28 Z0` gönderebiliyor; koruma
+   * kalkarsa o komut Z'yi kafanın bulunduğu rastgele X/Y'de homeler.
+   * Nokta değiştirmek istenen davranışı veriyor, korumayı ise koruyor.
+   *
+   * Sabit 2, HOMING_BACKOFF_MM'in X/Y girdileriyle AYNI olmalı
+   * (o bir brace-list olduğu için önişlemciden indekslenemiyor).
+   * HOMING_BACKOFF_MM veya X_MIN_POS/Y_MIN_POS değişirse burası da değişmeli.
+   */
+  #define Z_SAFE_HOMING_X_POINT (X_MIN_POS + 2)       // −8: X homing'in bıraktığı nokta
+  #define Z_SAFE_HOMING_Y_POINT (Y_MIN_POS + 2)       // −8: Y homing'in bıraktığı nokta
 #endif
 
 // Homing speeds (mm/m)

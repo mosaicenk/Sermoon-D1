@@ -3,7 +3,7 @@
 Creality **Sermoon D1** kapalı kabin 3D yazıcısı için Marlin 2.0.x bugfix
 tabanlı, modülerleştirilmiş ve genişletilmiş firmware.
 
-**Versiyon**: `SD1-2.6` (base: stock Creality V1.1.10)
+**Versiyon**: `SD1-2.7` (base: stock Creality V1.1.10)
 **Build hedefi**: Creality V4.3.1 anakart (STM32F103RET6) — **tek hedef, başka kart desteklenmez**
 **Son güncelleme**: 2026-07-27
 
@@ -41,7 +41,7 @@ cd C:\sermoon-d1
 pio run -e creality
 ```
 
-Çıktı: `.pio\build\creality\firmware.bin` (127.176 byte ≈ 124 KB).
+Çıktı: `.pio\build\creality\firmware.bin` (126.888 byte ≈ 124 KB).
 
 > **Versiyon değiştirdiyseniz temiz derleyin.** `Marlin/Version.h` makro ile
 > include edildiği için SCons bağımlılık grafiğinde yok; artımlı derleme onu
@@ -243,7 +243,7 @@ Configuration aktivasyonları:
 - `PAREN_COMMENTS` — `(comment)` syntax
 - ~~`CANCEL_OBJECTS`~~ — default OFF (2026-05-23 optimizasyon); M486 gerekiyorsa aç
 - ~~`GCODE_MACROS`~~ — default OFF (2026-05-23 optimizasyon); makro gerekiyorsa aç
-- `QUICK_HOME` — diagonal X+Y home
+- ~~`QUICK_HOME`~~ — **SD1-2.7'de kapatıldı**; X ve Y artık sırayla homeleniyor
 
 ### Performans
 - `BUFSIZE 8` — host streaming akıcılığı
@@ -296,11 +296,11 @@ Bazı modern özellikler donanım/HAL nedeniyle aktive edilemez:
 
 | Metrik | Değer |
 |---|---|
-| Flash | **127.176 byte** (%24.3 / 524288 byte) |
+| Flash | **126.888 byte** (%24.2 / 524288 byte) |
 | RAM | **13.176 byte** (%20.1 / 65536 byte) |
 | Compile warning | **0** (proje kodu) + 1 upstream (`util_adc.c`, framework) |
 | Build süresi | ~12 sn (clean) |
-| `firmware.bin` SHA256 | `445D2E5A…2037` (2026-07-27 derlemesi — güne bağlı, nota bak) |
+| `firmware.bin` SHA256 | `F3827387…7E17` (2026-07-27 derlemesi — güne bağlı, nota bak) |
 
 > ⚠️ **SHA256 güne bağlıdır.** `Marlin.cpp:956` binary'ye `__DATE__` gömer
 > (`Compiled: Jul 23 2026` gibi). Temiz derleme başka bir günde farklı hash

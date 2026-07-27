@@ -8,6 +8,74 @@ Versiyonlama: Sermoon-D1-X.Y[-suffix] (X = major iyileştirme, Y = minor)
 
 ---
 
+## [Sermoon-D1-2.7] — 2026-07-27
+
+X/Y homing davranışı kullanıcı isteğiyle değiştirildi: **eksenler sırayla
+homeleniyor ve G28 sonrası nozul tabla ortasına gitmiyor.** Flash −288 byte
+(127.176 → **126.888**, %24,2), RAM değişmedi (13.176). Binary değişti →
+**yeniden flash gerekir** (SHA256 `F3827387…7E17`, 2026-07-27 derlemesi).
+
+### Changed
+
+- **`QUICK_HOME` kapatıldı — X ve Y artık sırayla homeleniyor.**
+  Açıkken G28, X ve Y'yi tek çapraz hamleyle aynı anda iki endstop'a
+  sürüyordu (hedef (−450, −420), hız 22,8 mm/s =
+  `min(homing_feedrate) × √((280/300)² + 1)`). Kapalıyken `G28.cpp`'nin
+  normal sırası geçerli: **önce X, sonra Y** (`HOME_Y_BEFORE_X` kapalı),
+  her biri kendi hızlı geçiş + 5 mm bump + yavaş geçiş döngüsüyle.
+  - Ölçüldü: `QUICK_HOME = OFF`, `SIRA = X sonra Y`.
+  - Flash −288 byte — `quick_home_xy()` tamamen düştü.
+  - Bedeli süre: çapraz tek tarama yerine iki ayrı tam tarama, uzak köşeden
+    kabaca iki katı (**hesap; ölçülmedi**).
+
+- **`Z_SAFE_HOMING` noktası tabla ortasından park noktasına alındı:**
+  `((X_BED_SIZE)/2, (Y_BED_SIZE)/2)` = (145, 135) → `(X_MIN_POS + 2,
+  Y_MIN_POS + 2)` = **(−8, −8)**.
+  Bu, X/Y homing'in zaten bıraktığı konum (`homeaxis()` ekseni −10 sayar,
+  `HOMING_BACKOFF_MM` 2 mm geri çeker). Dolayısıyla `home_z_safely()`
+  içindeki `do_blocking_move_to_xy()` **sıfır uzunluklu** bir hareket
+  üretiyor — nozul hiçbir yere gitmiyor.
+  - Ölçüldü: `Z_SAFE_XY = (-10 + 2) , (-10 + 2)`.
+  - **`Z_SAFE_HOMING` kapatılMADI, bilerek.** Makro aynı zamanda *"X ve Y
+    homelenmeden Z homelenemez"* korumasını taşıyor (`G28.cpp:128`,
+    `axis_known_position`). DWIN ekranı `LCD_RTS.cpp:1459`'da tek başına
+    `G28 Z0` gönderebiliyor; koruma kalksaydı o komut Z'yi kafanın
+    bulunduğu rastgele X/Y konumunda homelerdi. Noktayı taşımak istenen
+    sonucu veriyor, korumayı ise yerinde bırakıyor.
+  - `(−8, −8)` erişilebilirlik sınırları içinde: `position_is_reachable`
+    kartezyen dalı `WITHIN(rx, X_MIN_POS − slop, X_MAX_POS + slop)`
+    kontrolü yapıyor, −10 ≤ −8.
+
+### Sonuç — G28 sonrası konum
+
+Artık **her varyantta (−8, −8)**: `G28`, `G28 X Y`, `G28 X`, `G28 Y`.
+Önceki sürümlerde tam `G28` (145, 135)'te bitiyordu.
+
+### Doğrulama
+
+| Adım | Sonuç |
+|---|---|
+| `#pragma message` — `QUICK_HOME` | **OFF** |
+| `#pragma message` — homing sırası | **X sonra Y** |
+| `#pragma message` — `Z_SAFE_HOMING` | **ON** (koruma duruyor) |
+| `#pragma message` — `Z_SAFE_XY` | `(-10 + 2) , (-10 + 2)` |
+| Temiz derleme | 126.888 B / 13.176 B, proje kodunda 0 uyarı |
+| Binary sürüm dizesi | `SD1-2.7` |
+
+> ⚠️ **DONANIMDA DOĞRULANMADI — flash öncesi iki elle kontrol:**
+> 1. **(−8, −8) tabla dışıdır.** Z inişinin o köşede takılacağı bir tabla
+>    klipsi, kablo veya şasi parçası olmadığını doğrulayın.
+> 2. **İlk katman kalibrasyonu.** Z artık (145, 135) yerine (−8, −8)'de
+>    homeleniyor. Z endstop'u gövdeye sabit mekanik switch (PA7) olduğu için
+>    tetik yüksekliğinin X/Y'den bağımsız olması *beklenir* — ama bu
+>    firmware'den doğrulanamaz, switch'in montaj yerine bağlıdır. Flash
+>    sonrası kâğıt testiyle teyit edin.
+>
+> Ayrıca slicer start G-code'unuz veya makrolarınız G28 sonrası nozulun tabla
+> ortasında olduğunu varsayıyorsa gözden geçirin.
+
+---
+
 ## [Sermoon-D1-2.6] — 2026-07-27
 
 X/Y homing denetimi. `IMPROVE_HOMING_RELIABILITY` **SD1-1.2'den beri hiç
