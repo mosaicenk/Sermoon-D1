@@ -46,9 +46,13 @@ Output: `.pio\build\creality\firmware.bin` (126,864 bytes ≈ 124 KB).
 
 ### 2. Flash
 
-**Path A — SD card**: `firmware.bin` → SD root → reset printer.
+**Option A — Direct Download (Pre-compiled Binary)**:
+Download the latest compiled `firmware.bin` from [GitHub Releases](https://github.com/mosaicenk/Sermoon-D1/releases/tag/SD1-2.9) → Copy to SD root → Reset printer.
 
-**Path B — J-Link**:
+**Option B — Build from Source**:
+`firmware.bin` → SD root → Reset printer.
+
+**Option C — J-Link**:
 ```powershell
 pio run -e creality -t upload
 ```
