@@ -2,6 +2,14 @@
 
 This document logs all changes made on top of the base version (`stock Creality V1.1.10`, Marlin 2.0.x bugfix branch).
 
+## [SD1-3.0] - 2026-08-03
+
+**Fixes**
+- **Filament runout sensor polarity (`src/lcd/dwin/LCD_RTS.cpp`)**: The DWIN/RTS screen had its own filament check, independent of Marlin's `feature/runout.cpp`, reading the same pin (PA4). The two disagreed on polarity: `Configuration.h` sets `FIL_RUNOUT_INVERTING false` (HIGH = filament present), while the RTS code treated HIGH as "no filament".
+  - Symptom: with filament loaded, starting a print raised the "is filament loaded?" dialog, and pressing "Yes" did nothing. The Yes handler (`NoFilamentContinue`) re-runs `RTS_CheckFilement()` as its first statement and bails out via `break` when it reports empty, so `M23`/`M24` were never queued — the dialog could not be dismissed.
+  - Both RTS pin reads inverted to `0 == READ(CHECKFILEMENT_PIN)` (LOW = no filament): the polling loop in `RTS_CheckFilement()` and the in-print check in `RTSUpdate()`. These are the only two reads of that pin.
+  - Both detection paths now agree with the hardware. Flash 126,896 bytes (+8) -> **needs re-flashing.**
+
 ## [SD1-2.9] - 2026-07-27
 
 **Fixes & Refinements**

@@ -380,8 +380,8 @@
   {
     waitway = 4;
 
-    // no filements check
-    for(Checkfilenum = 0; (1 == READ(CHECKFILEMENT_PIN)) && (Checkfilenum < 50); Checkfilenum++)
+    // no filements check (LOW = no filament, matching FIL_RUNOUT_INVERTING false)
+    for(Checkfilenum = 0; (0 == READ(CHECKFILEMENT_PIN)) && (Checkfilenum < 50); Checkfilenum++)
     {
       delay(15);
     }
@@ -2260,7 +2260,7 @@
       // checking filement status during printing
       if(FilementStatus[1] == 2 && true == card.isPrinting()) // 3DPrint is printing
       {
-        if(1 == READ(CHECKFILEMENT_PIN))
+        if(0 == READ(CHECKFILEMENT_PIN)) // LOW = no filament
         {
           Checkfilenum++;
           delay(5);

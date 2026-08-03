@@ -2,9 +2,9 @@
 
 Marlin 2.0.x bugfix-based, modularized, and extended firmware for the Creality **Sermoon D1** enclosed 3D printer.
 
-**Version**: `SD1-2.9` (base: stock Creality V1.1.10)
+**Version**: `SD1-3.0` (base: stock Creality V1.1.10)
 **Build target**: Creality V4.3.1 motherboard (STM32F103RET6) — **single target, no other boards supported**
-**Last updated**: 2026-07-27
+**Last updated**: 2026-08-03
 
 > This fork is cleaned from the stock Sermoon D1 firmware, optimized, and enhanced with features cherry-picked from Marlin 2.1.x.
 > All changes are listed in [CHANGELOG.md](CHANGELOG.md).
@@ -39,7 +39,7 @@ cd C:\sermoon-d1
 pio run -e creality
 ```
 
-Output: `.pio\build\creality\firmware.bin` (126,864 bytes ≈ 124 KB).
+Output: `.pio\build\creality\firmware.bin` (126,896 bytes ≈ 124 KB).
 
 > **If you changed the version, do a clean build.** Because `Marlin/Version.h` is included via macro, it is not in the SCons dependency graph; an incremental build won't see it and the firmware will silently carry the old version string:
 > `rm -rf .pio/build/creality && pio run -e creality`
@@ -47,7 +47,7 @@ Output: `.pio\build\creality\firmware.bin` (126,864 bytes ≈ 124 KB).
 ### 2. Flash
 
 **Option A — Direct Download (Pre-compiled Binary)**:
-Download the latest compiled `firmware.bin` from [GitHub Releases](https://github.com/mosaicenk/Creality-Sermoon-D1/releases/tag/SD1-2.9) → Copy to SD root → Reset printer.
+Download the latest compiled `firmware.bin` from [GitHub Releases](https://github.com/mosaicenk/Creality-Sermoon-D1/releases/tag/SD1-3.0) → Copy to SD root → Reset printer.
 
 **Option B — Build from Source**:
 `firmware.bin` → SD root → Reset printer.
