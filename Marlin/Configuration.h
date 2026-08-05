@@ -819,7 +819,12 @@
   #endif
 #endif
 
-#define DEFAULT_EJERK    5.0  // Used by Linear Advance even with JUNCTION_DEVIATION
+// SD1-3.1: NOT used in this build. HAS_CLASSIC_E_JERK = (CLASSIC_JERK || !LIN_ADVANCE)
+// (Conditionals_post.h:47) is false here, so Linear Advance derives its E jerk from
+// JUNCTION_DEVIATION_MM instead (planner.h:877-885 -> ~13.5 mm/s with JD 0.015 and
+// E accel 5000). This value only survives for EEPROM compatibility. Changing it has
+// no effect on motion; tune JUNCTION_DEVIATION_MM (or M205 J) instead.
+#define DEFAULT_EJERK    5.0
 
 /**
  * Junction Deviation Factor
@@ -1128,10 +1133,17 @@
 // Travel limits (mm) after homing, corresponding to endstop positions.
 #define X_MIN_POS -10
 #define Y_MIN_POS -10
-// SD1-1.3: Z_MIN_POS 0 → -1. To be compatible with MANUAL_Z_HOME_POS=-1.
-// Mechanical trigger is now reported as Z=-1, 1mm up from Z=0 trigger.
-// The first layer of the slicer (Z=0.2) physically starts 1.2 mm above the bed.
-#define Z_MIN_POS -1
+// SD1-3.2: Z_MIN_POS -1 → 0 (stock value), reverting the SD1-1.3 workaround together
+// with MANUAL_Z_HOME_POS (see below, now left undefined). This define is doing double
+// duty: with MANUAL_Z_HOME_POS gone, Z_HOME_POS derives from Z_MIN_POS
+// (Conditionals_post.h:181), so 0 is both the soft floor AND the homing coordinate.
+// Commanded Z=0 is therefore the endstop trigger point — nozzle on the bed. The floor
+// sitting at the same 0 means jogging cannot drive the nozzle into the plate; the old
+// -1 floor would now mean 1 mm BELOW the bed surface, harmless only while
+// MANUAL_Z_HOME_POS carried the +1 mm bias.
+// Live fine-tuning is unaffected — the DWIN Z-offset applies through babystepping
+// (LCD_RTS.cpp:1182), which bypasses soft endstops entirely.
+#define Z_MIN_POS 0
 #define X_MAX_POS X_BED_SIZE
 #define Y_MAX_POS Y_BED_SIZE
 #define Z_MAX_POS 320
@@ -1254,6 +1266,10 @@
  */
 //#define DEBUG_LEVELING_FEATURE
 
+// SD1-3.1: everything in the block below is INERT on this printer. No probe is
+// installed and no leveling mode is enabled, so the guard is false and none of
+// these defines reach the build. They are kept for a future probe upgrade — do
+// not read an uncommented #define here as an active setting.
 #if ANY(MESH_BED_LEVELING, AUTO_BED_LEVELING_BILINEAR, AUTO_BED_LEVELING_UBL)
   // Gradually reduce leveling correction until a set height is reached,
   // at which point movement will be level to the machine's XY plane.
@@ -1376,10 +1392,30 @@
 // For DELTA this is the top-center of the Cartesian print volume.
 //#define MANUAL_X_HOME_POS 0
 //#define MANUAL_Y_HOME_POS 0
-// SD1-1.3: Increase the Z=0 reference by 1 mm for the end of the range of table adjustment screws.
-// swipe The mechanical Z trigger is now coordinate Z=-1, 1 mm above the Z=0 trigger.
-// Workaround for bed leveling clearance issue — permanent, valid even after M502.
-#define MANUAL_Z_HOME_POS -1
+// SD1-3.2: back to STOCK — undefined. The -1 was an SD1-1.3 workaround from when the bed adjustment
+// screws had run out of travel: it lifted the Z=0 reference by 1 mm, so a slicer's
+// first layer at Z=0.2 actually ran 1.2 mm above the plate. After the bed was
+// re-levelled properly that bias became pure error, and it had to be cancelled by
+// hand — 1 mm of negative Z-offset dialled into the DWIN screen after EVERY homing,
+// because that offset is not persisted (zprobe_zoffset lives only in LCD_RTS.cpp,
+// never in EEPROM, so it resets to 0 on each power-up).
+//
+// Left undefined, exactly as upstream Marlin ships it. Z_HOME_POS then falls through
+// to (Z_HOME_DIR < 0 ? Z_MIN_POS : Z_MAX_POS) (Conditionals_post.h:181) = Z_MIN_POS
+// = 0, so the endstop trigger point IS Z=0 and a slicer first layer at Z=0.2 really
+// is 0.2 mm off the plate. The bed has been re-levelled and verified flat, so the
+// workaround is deleted rather than re-tuned.
+//
+// NOTE ON MECHANICS: on this machine the BED moves in Z (two lead screws, two motors
+// wired in parallel on a single driver — see Z2_DRIVER_TYPE, line 679); the hotend is
+// fixed in Z. So "Z increases" physically means the bed drops, and homing raises the
+// bed into the endstop. None of the arithmetic above cares — Marlin's Z coordinate is
+// the nozzle-to-bed distance, and INVERT_Z_DIR/Z_HOME_DIR absorb which side moves.
+// Read every "nozzle goes down" in these comments as "the gap closes".
+//
+// DO NOT keep dialling -1 into the DWIN Z-offset after flashing — it would stack
+// on top of the corrected zero and drive the nozzle 1 mm into the bed.
+//#define MANUAL_Z_HOME_POS 0
 
 // Use "Z Safe Homing" to avoid homing with a Z probe outside the bed area.
 //

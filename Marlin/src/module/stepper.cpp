@@ -1490,7 +1490,10 @@ void Stepper::stepper_pulse_phase_isr() {
     // Add the delay needed to ensure the maximum driver rate is enforced
     if (signed(added_step_ticks) > 0) pulse_end += hal_timer_t(added_step_ticks);
 
-    for(char i = 0; i < 2; i++);  // ns delay
+    // SD1-3.1: a stock-Creality `for(char i = 0; i < 2; i++);  // ns delay` sat here.
+    // Empty body, non-volatile counter -> no delay is produced and the optimizer drops
+    // it (verified: removing it left firmware.bin byte-identical). Pulse width is
+    // already guaranteed by the MIN_PULSE_TICKS busy-wait above.
 
     // Pulse stop
     #if HAS_X_STEP

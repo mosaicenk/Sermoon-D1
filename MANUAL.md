@@ -298,12 +298,22 @@ Full `G28` also now ends at the same point because `Z_SAFE_HOMING_X/Y_POINT` is 
 ### 6.3 Z Home Offset
 
 ```cpp
-#define MANUAL_Z_HOME_POS    -1       // Z home = at -1mm coordinate
-#define Z_MIN_POS            -1       // Minimum Z position
-#define Z_AFTER_HOMING       0        // Z position after homing
+//#define MANUAL_Z_HOME_POS 0         // undefined (stock) → Z_HOME_POS = Z_MIN_POS = 0
+#define Z_MIN_POS           0         // soft floor AND homing coordinate = bed surface
+//#define Z_AFTER_HOMING 1            // undefined (stock) → no move after homing Z
 ```
 
-> For the end of the bed adjustment screws range, the Z=0 reference is shifted 1mm up. Mechanical trigger is at Z=-1, Z=0 is 1mm above the trigger.
+> **SD1-3.2 returns the Z axis to stock Marlin behaviour.** Up to SD1-3.1 the reference was shifted 1 mm up (`MANUAL_Z_HOME_POS -1`), a leftover from SD1-1.3 when the bed screws had run out of travel: the mechanical trigger read `Z=-1` and a slicer first layer at `Z=0.2` physically ran **1.2 mm** above the plate. That had to be cancelled by hand with 1 mm of negative Z-offset on the screen after every homing.
+>
+> With both overrides deleted, the endstop trigger point **is** `Z=0`. A slicer first layer at `Z=0.2` really is 0.2 mm off the plate, automatically, on every `G28`, surviving `M502`.
+>
+> **After `G28` the screen reads `2.00`, not `0.00`.** With `Z_AFTER_HOMING` gone, the position left by `homeaxis()` is what stands, and that is not the trigger point: `set_axis_is_at_home()` sets `Z=0`, then `HOMING_BACKOFF_MM { 1, 1, 2 }` retracts the Z axis 2 mm off the endstop (`motion.cpp:1672-1696`). So homing ends with the bed 2 mm below the nozzle.
+>
+> Previous versions hid this — `Z_AFTER_HOMING 0` ran *after* the backoff and pulled the bed back up, which is why the screen used to read `0.00`. Nothing about the zero reference changes: `Z=0` is still the trigger point, and a slicer first layer at `Z=0.2` is still 0.2 mm off the plate. Only the resting position after `G28` is different, and the 2 mm gap is the safer one — it also leaves the Z endstop released, so `M119` reads honestly.
+>
+> **Do not dial −1 into the DWIN Z-offset any more.** It stacks on top of the new zero and puts the nozzle 1 mm into the plate. The screen should read `0.00`.
+>
+> **Mechanics:** on the Sermoon D1 the **bed** is what moves in Z (two lead screws driven by two motors wired in parallel on a single driver); the hotend is fixed in Z. Homing raises the bed until it trips the endstop, and `Z_AFTER_HOMING` then drops it 1 mm. So wherever this manual says the nozzle "goes down", what physically happens is the bed coming up. Marlin's Z coordinate is the nozzle-to-bed distance, so every number above is correct either way.
 
 ### 6.4 Z Safe Homing
 

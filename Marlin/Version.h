@@ -60,7 +60,7 @@
 // Old value was "MarlinV2 by CTK": 15 characters, above ~14 characters
 // It was exceeding the DWIN slot (it was clipping on the screen) and which fork version
 // It didn't say it was installed. Moved attribution to DETAILED_BUILD_VERSION.
-#define SHORT_BUILD_VERSION "SD1-2.8"
+#define SHORT_BUILD_VERSION "SD1-3.2"
 
 /**
  * Verbose version identifier — Shown in M115 response.
@@ -70,7 +70,7 @@
 /**
  * The STRING_DISTRIBUTION_DATE represents when the binary file was built.
  */
-#define STRING_DISTRIBUTION_DATE "2026-07-27"
+#define STRING_DISTRIBUTION_DATE "2026-08-05"
 
 /**
  * Defines a generic printer name to be output to the LCD after booting Marlin.

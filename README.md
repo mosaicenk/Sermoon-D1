@@ -2,9 +2,9 @@
 
 Marlin 2.0.x bugfix-based, modularized, and extended firmware for the Creality **Sermoon D1** enclosed 3D printer.
 
-**Version**: `SD1-3.0` (base: stock Creality V1.1.10)
+**Version**: `SD1-3.2` (base: stock Creality V1.1.10)
 **Build target**: Creality V4.3.1 motherboard (STM32F103RET6) — **single target, no other boards supported**
-**Last updated**: 2026-08-03
+**Last updated**: 2026-08-05
 
 > This fork is cleaned from the stock Sermoon D1 firmware, optimized, and enhanced with features cherry-picked from Marlin 2.1.x.
 > All changes are listed in [CHANGELOG.md](CHANGELOG.md).
@@ -39,15 +39,21 @@ cd C:\sermoon-d1
 pio run -e creality
 ```
 
-Output: `.pio\build\creality\firmware.bin` (126,896 bytes ≈ 124 KB).
+Output: `.pio\build\creality\firmware.bin` (126,888 bytes ≈ 124 KB).
 
 > **If you changed the version, do a clean build.** Because `Marlin/Version.h` is included via macro, it is not in the SCons dependency graph; an incremental build won't see it and the firmware will silently carry the old version string:
 > `rm -rf .pio/build/creality && pio run -e creality`
+>
+> **Then confirm the version inside the binary — never trust the source alone:**
+> `grep -a -o "SD1-[0-9.]*" .pio/build/creality/firmware.bin`
+> A stale build and a forgotten `SHORT_BUILD_VERSION` bump produce the exact same symptom, and SD1-2.9 through SD1-3.0 shipped reporting `SD1-2.8` because nobody checked (see CHANGELOG SD1-3.1). Bump `Marlin/Version.h`, the CHANGELOG header and the **Version** row above together.
 
 ### 2. Flash
 
 **Option A — Direct Download (Pre-compiled Binary)**:
-Download the latest compiled `firmware.bin` from [GitHub Releases](https://github.com/mosaicenk/Creality-Sermoon-D1/releases/tag/SD1-3.0) → Copy to SD root → Reset printer.
+Download the latest compiled `firmware.bin` from [GitHub Releases](https://github.com/mosaicenk/Creality-Sermoon-D1/releases/latest) → Copy to SD root → Reset printer.
+
+> The link resolves to whatever release is newest, so it no longer needs editing on every version bump. If the newest release is older than the `Version` above, that version has not been published yet — build from source.
 
 **Option B — Build from Source**:
 `firmware.bin` → SD root → Reset printer.
@@ -265,8 +271,8 @@ Some modern features cannot be activated due to hardware/HAL constraints:
 | Flash | **126,864 bytes** (24.2% / 524288 bytes) |
 | RAM | **13,176 bytes** (20.1% / 65536 bytes) |
 | Compile warning | **0** (project code) + 1 upstream (`util_adc.c`, framework) |
-| Build time | ~12 sec (clean) |
-| `firmware.bin` SHA256 | `A9567E83…23DA` (2026-07-27 build — depends on the day, see note) |
+| Build time | ~15 sec (clean) |
+| `firmware.bin` SHA256 | `85F40505…81D6` (SD1-3.2, 2026-08-05 build — depends on the day, see note) |
 
 > ⚠️ **SHA256 depends on the day.** `Marlin.cpp:956` embeds `__DATE__` into the binary (like `Compiled: Jul 23 2026`). A clean build on another day produces a different hash; size and behavior do not change. Bit-by-bit comparison is only meaningful between two builds done on the **same day**. Measurement (2026-07-24): comment change revert/re-apply experiment yielded the exact same hash on the same day (`4402B902…AD818`); the only difference from yesterday's `BDAB96BB…B987` is the date string.
 >

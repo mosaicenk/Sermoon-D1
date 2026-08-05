@@ -2,6 +2,76 @@
 
 This document logs all changes made on top of the base version (`stock Creality V1.1.10`, Marlin 2.0.x bugfix branch).
 
+## [SD1-3.2] - 2026-08-05
+
+**The Z axis is returned to stock Marlin behaviour.** Every fork-specific Z override
+accumulated in SD1-1.2/1.3 is deleted, not re-tuned. After the bed was re-levelled by hand
+(0.07 mm paper, four corners) and **verified flat**, a test cube printed cleanly — but only
+while 1 mm of negative Z-offset was dialled into the DWIN screen after *every* homing. The
+overrides were the sole reason that was necessary.
+
+**Fixes**
+- **Z=0 sat 1 mm too high (`Configuration.h`)**: `MANUAL_Z_HOME_POS` was `-1`, an SD1-1.3 workaround from when the bed adjustment screws had run out of travel — it lifted the Z zero by 1 mm, so a slicer first layer at `Z=0.2` physically ran **1.2 mm** above the plate (the original comment said so explicitly). Once the bed was levelled properly that bias became pure error.
+  - `MANUAL_Z_HOME_POS` is now **undefined**, as upstream ships it. `Z_HOME_POS` falls through to `(Z_HOME_DIR < 0 ? Z_MIN_POS : Z_MAX_POS)` (`Conditionals_post.h:181`) `= Z_MIN_POS = 0`, so the endstop trigger point **is** `Z=0`.
+  - The nozzle-to-bed gap is `gap_at_trigger + (Z_commanded - Z_HOME_POS)`, so dropping the `-1` closes the gap by exactly 1 mm at every commanded Z — identical to the manual −1 mm offset, now applied automatically on **every `G28`**, surviving `M502`, with no screen entry.
+  - Path verified end to end: `Conditionals_post.h:178/181` → `base_home_pos()` (`motion.h:123`) → `set_axis_is_at_home()` (`motion.cpp:1375`).
+  - `Z_MIN_POS` **-1 → 0**, also the stock value, and now doing double duty: with `MANUAL_Z_HOME_POS` gone it *is* the homing coordinate as well as the soft floor. Floor and bed coincide, so neither jogging nor the DWIN move menu (`LCD_RTS.cpp:1605` clamps to `Z_MIN_POS`) can drive the nozzle into the plate. `MIN_SOFTWARE_ENDSTOP_Z` is enabled, so the clamp is live.
+  - Live micro-adjustment is unaffected: the DWIN Z-offset applies via babystepping (`LCD_RTS.cpp:1182`), which bypasses soft endstops.
+- **`Z_AFTER_HOMING` removed (`Configuration_adv.h`)** — undefined, as upstream ships it. The `#if defined(Z_AFTER_HOMING)` block in `G28.cpp:469-470` drops out and the position left by `homeaxis()` now stands.
+  - **That position is `Z=2`, not `Z=0`.** `homeaxis()` calls `set_axis_is_at_home()` (`Z=0`, the trigger point) and *then* applies `HOMING_BACKOFF_MM { 1, 1, 2 }`, retracting Z 2 mm off the endstop: `current_position[Z] -= ABS(2) * axis_home_dir` with `axis_home_dir = -1` (`motion.cpp:1672-1696`). `G28` therefore ends with the bed 2 mm below the nozzle and the DWIN screen reading **`2.00`**.
+  - This was previously invisible: `Z_AFTER_HOMING 0` ran *after* the backoff and pulled the bed back up to the zero coordinate, which is why the screen used to read `0.00`. The backoff itself is unchanged and stays — it is the SD1-2.9 endstop-release behaviour that keeps `M119` unambiguous, and 2 mm of clearance after homing is the safe resting state.
+  - The zero reference is unaffected either way: `Z=0` is the trigger point and a slicer first layer at `Z=0.2` is 0.2 mm off the plate.
+  - SD1-1.2 had defined it as `0`, justified as "a known safe altitude that clarifies the reference for 2 parallel Z motors". That rationale does not hold: park height has no bearing on how two motors sharing one driver align, and under the SD1-1.3 zero the value `0` was not a safe altitude either — it was the 1 mm offset in disguise.
+  - An interim SD1-3.2 draft set this to `1` to keep a parking gap, on the assumption that the bed centre was crowned. The user has since measured the bed flat, removing the only thing a park height protected against, so stock won.
+  - `Z_HOMING_HEIGHT` (4 mm, `Configuration.h:1117`) was checked and left alone: it still lifts 4 mm before X/Y homing, now measured from the true bed surface.
+
+**Mechanics note**: this printer moves the **bed** in Z (two lead screws, two motors in parallel on one driver); the hotend is fixed in Z. Homing raises the bed into the endstop. None of the arithmetic cares — Marlin's Z coordinate is the nozzle-to-bed distance, not a toolhead height — but the comments now say so, since "the nozzle moves down" is never literally what happens here.
+
+**Why the offset never stuck before**: `zprobe_zoffset` is a plain global in `LCD_RTS.cpp:39`, held only there and in power-loss recovery — it is **not** part of the EEPROM settings, so it resets to 0 on every power-up. No amount of `M500` would have saved it; the value had to live in the firmware.
+
+> **After flashing, stop entering −1 on the screen.** The screen offset would stack on top of the new zero and push the nozzle 1 mm into the bed. It should read **0.00**. Also check `M503` for a stored `M206 Z` home offset — if one is set it stacks the same way; clear it with `M206 Z0` + `M500`.
+
+**Measured** (clean build, 2026-08-05): Flash 126,864 bytes (**−24** vs SD1-3.1), RAM 13,176 bytes (unchanged), 0 project warnings. The saving is real code, not constants: dropping `Z_AFTER_HOMING` removes the `do_blocking_move_to_z()` call from `G28` entirely. `firmware.bin` SHA256 `85F40505…81D6`; `__DATE__` is embedded, so the hash only reproduces on a same-day build.
+
+Version string confirmed inside the image after the clean build:
+```
+$ grep -a -o "SD1-[0-9.]*" .pio/build/creality/firmware.bin
+SD1-3.2
+```
+
+**Re-flashing required** — this is the whole point of the release.
+
+## [SD1-3.1] - 2026-08-04
+
+Follow-up to a full audit of the motion path (planner, stepper ISR, homing, arc/Bezier
+generation). No motion algorithm was changed; these are mostly consistency fixes where the
+configuration or comments claimed something the code does not do. The one behavioural change
+is the idle stepper release time, listed below.
+
+**Fixes**
+- **Version string was stuck at `SD1-2.8` (`Marlin/Version.h`)**: `SHORT_BUILD_VERSION` was never bumped after 2026-07-26, so the binaries released as SD1-2.9, SD1-3.0 and SD1-3.1 all reported **`SD1-2.8`** in `M115` and on the DWIN "About" screen. Verified directly in the compiled image: the 126,888-byte `firmware.bin` contained the string `SD1-2.8 (Sermoon D1 by CTK, base V1.1.10)`. Bumped to `SD1-3.1`, and `STRING_DISTRIBUTION_DATE` from the equally stale `2026-07-27` to `2026-08-04`. This was a plain missed edit, not the incremental-build trap documented in the README — but the two look identical from the outside, so **always confirm the version inside the binary after a bump**: `grep -a -o "SD1-[0-9.]*" .pio/build/creality/firmware.bin`.
+- **Idle stepper release shortened, 300 s → 60 s (`Configuration_adv.h`)**: the 300 s value was justified in-comment by "manual pauses were being interrupted". That justification was wrong. `manage_inactivity()` resets the stepper timeout on every pass while the print is paused (`Marlin.cpp:475-478`, `printingIsPaused()` = `did_pause_print || print_job_timer.isPaused() || IS_SD_PAUSED()`), and `PAUSE_PARK_NO_STEPPER_TIMEOUT` excludes `M600` a second time via `MOVE_AWAY_TEST`. Steppers **cannot** time out during a filament change or a paused print at any value of this setting, so nothing was ever protecting pauses.
+  - The timeout therefore only governs a genuinely idle machine — not printing, not paused. Releasing the motors after 60 s instead of 300 s cuts four minutes of pointless idle heat inside the closed cabinet and standing thermal load on the TMC2208 standalone drivers. Z is held mechanically by the Z lock module, so `DISABLE_INACTIVE_Z true` stays safe.
+  - **User-visible effect**: after a print ends, the motors go slack about four minutes sooner; the head can be pushed by hand at that point. Homing is required before the next print either way. Override at runtime with `M84 S<seconds>` if you want the old behaviour without rebuilding.
+- **Retract feedrates stated values that could never take effect (`Configuration_adv.h`)**: `DEFAULT_MAX_FEEDRATE` caps the E axis at 25 mm/s, and the planner scales every block down to that ceiling (`planner.cpp:2032-2038`). `RETRACT_FEEDRATE 45` and `PAUSE_PARK_RETRACT_FEEDRATE 60` were therefore executed as 25 mm/s, silently and without warning. Both set to **25** so the configuration matches the motion actually produced. **Physical behaviour is unchanged** — retracts already ran at 25 mm/s. To retract faster, raise the E entry of `DEFAULT_MAX_FEEDRATE` first; the retract values alone do nothing.
+  - Note: `M207`/`M208` values already stored in `eeprom.dat` are unaffected (they were being clamped to the same 25 mm/s). The new defaults apply after `M502` + `M500`.
+- **`DEFAULT_EJERK` comment was wrong (`Configuration.h`)**: it claimed the value is "used by Linear Advance even with JUNCTION_DEVIATION". `HAS_CLASSIC_E_JERK = (CLASSIC_JERK || !LIN_ADVANCE)` (`Conditionals_post.h:47`) is false in this build, so LA derives its E jerk from `JUNCTION_DEVIATION_MM` instead (`planner.h:877-885`, ~13.5 mm/s at JD 0.015 with E accel 5000). Comment corrected; the value is untouched and remains inert outside EEPROM compatibility.
+- **Dead pulse-timing loop removed (`src/module/stepper.cpp`)**: a stock-Creality `for(char i = 0; i < 2; i++);  // ns delay` sat between the Bresenham pulse start and pulse stop. Empty body, non-volatile counter — it produces no delay and the optimizer discards it. Removed; pulse width is guaranteed by the `MIN_PULSE_TICKS` busy-wait. **Verified: firmware.bin is byte-identical before and after removal** (SHA256 `8E9D0584…7627`), proving the compiler had already eliminated it.
+
+**Documentation**
+- `MM_PER_ARC_SEGMENT 2` rationale was stale: it cited `BLOCK_BUFFER_SIZE 16`, which has since become 32, so the buffer-starvation argument for 1 → 2 mm no longer holds. The comment now records this; **the value was not changed** — reverting to 1 mm doubles arc resolution (chord error at R=20 mm: 0.025 → 0.006 mm) but needs verification on an arc-heavy print first.
+- The leveling block in `Configuration.h` is now marked as inert. Its `#define`s (`ENABLE_LEVELING_FADE_HEIGHT`, `SEGMENT_LEVELED_MOVES`, …) sit inside a guard that is false on this printer (no probe, no leveling mode), so they never reach the build despite appearing uncommented in a grep.
+
+**Measured** (clean build, 2026-08-04): Flash 126,888 bytes (−8 vs SD1-3.0), RAM 13,176 bytes (unchanged), 0 project warnings. The version bump costs nothing — `SD1-2.8` and `SD1-3.1` are the same length. `firmware.bin` SHA256 `F3361492…6A00`; `__DATE__` is embedded, so this hash only reproduces on a build made the same day.
+
+Version string verified inside the image after the clean build:
+```
+$ grep -a -o "SD1-[0-9.]*" .pio/build/creality/firmware.bin
+SD1-3.1
+```
+
+**Re-flashing**: recommended. Without it the printer keeps reporting `SD1-2.8`, and the corrected retract defaults only land on a fresh `M502` + `M500`. The 60 s idle stepper release takes effect immediately on flashing (it is a compile-time default, not an EEPROM value) — `M84 S300` restores the old timing for the current session if you prefer it.
+
 ## [SD1-3.0] - 2026-08-03
 
 **Fixes**

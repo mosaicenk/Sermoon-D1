@@ -184,3 +184,8 @@ __pycache__
 
 # Claude Code local settings (project-specific permissions, hooks)
 .claude/
+
+# Scratch grep dumps left over from the Turkish -> English translation pass
+# (UTF-16LE original + UTF-8 copy). Not part of the firmware or its docs.
+output.txt
+output_utf8.txt

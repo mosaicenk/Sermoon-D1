@@ -1530,22 +1530,56 @@ void homeaxis(const AxisEnum axis) {
 
   // If a second homing move is configured...
   if (bump) {
-    // Move away from the endstop by the axis HOME_BUMP_MM
-    if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Move Away:");
-    do_homing_move(axis, -bump
-      #if HOMING_Z_WITH_PROBE
-        , MMM_TO_MMS(axis == Z_AXIS ? Z_PROBE_SPEED_FAST : 0)
+    if (axis == Z_AXIS) {
+      // Z-Axis Custom 3-Touch Sequence
+      const float z_feedrate_fast = homing_feedrate(Z_AXIS);
+      
+      // --- Touch 2 ---
+      // Move away 6mm
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Move Away 6mm:");
+      do_homing_move(Z_AXIS, -6.0f * axis_home_dir
+        #if HOMING_Z_WITH_PROBE
+          , MMM_TO_MMS(Z_PROBE_SPEED_FAST)
+        #endif
+      );
+      // Slow move (Touch 2) at half the fast speed
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Home Z Touch 2:");
+      #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH) && DISABLED(BLTOUCH_HS_MODE)
+        if (bltouch.deploy()) return;
       #endif
-    );
+      do_homing_move(Z_AXIS, 12.0f * axis_home_dir, z_feedrate_fast / 2.0f);
 
-    // Slow move towards endstop until triggered
-    if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Home 2 Slow:");
+      // --- Touch 3 ---
+      // Move away 4mm
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Move Away 4mm:");
+      do_homing_move(Z_AXIS, -4.0f * axis_home_dir
+        #if HOMING_Z_WITH_PROBE
+          , MMM_TO_MMS(Z_PROBE_SPEED_FAST)
+        #endif
+      );
+      // Slower move (Touch 3) at quarter the fast speed
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Home Z Touch 3:");
+      #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH) && DISABLED(BLTOUCH_HS_MODE)
+        if (bltouch.deploy()) return;
+      #endif
+      do_homing_move(Z_AXIS, 8.0f * axis_home_dir, z_feedrate_fast / 4.0f);
 
-    #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH) && DISABLED(BLTOUCH_HS_MODE)
-      if (axis == Z_AXIS && bltouch.deploy()) return; // Intermediate DEPLOY (in LOW SPEED MODE)
-    #endif
+      // --- Final Backoff Before Setting Zero ---
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Final Backoff 2mm:");
+      do_homing_move(Z_AXIS, -2.0f * axis_home_dir
+        #if HOMING_Z_WITH_PROBE
+          , MMM_TO_MMS(Z_PROBE_SPEED_FAST)
+        #endif
+      );
 
-    do_homing_move(axis, 2 * bump, get_homing_bump_feedrate(axis));
+    } else {
+      // X/Y Axis Standard Sequence
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Move Away:");
+      do_homing_move(axis, -bump);
+
+      if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Home 2 Slow:");
+      do_homing_move(axis, 2 * bump, get_homing_bump_feedrate(axis));
+    }
 
     #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH)
       if (axis == Z_AXIS) bltouch.stow(); // The final STOW

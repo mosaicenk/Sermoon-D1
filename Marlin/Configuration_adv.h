@@ -598,7 +598,7 @@
  * SD1-2.9: X/Y backoff 0 -> 1. Not leaving the switch's spring constantly pressed
  * and 1 mm retreat to distinguish broken cable/parking with M119.
  */
-#define HOMING_BACKOFF_MM { 1, 1, 2 }  // (mm) Move away from the endstops after homing
+#define HOMING_BACKOFF_MM { 1, 1, 0 }  // (mm) Move away from the endstops after homing (Z backoff handled manually before 0)
 
 /**
  * IMPROVE_HOMING_RELIABILITY — temporarily reduces X/Y acceleration during homing.
@@ -625,11 +625,20 @@
  */
 #define IMPROVE_HOMING_RELIABILITY
 
-// SD1-1.3: Position G28 end nozzle at Z=0 (paper-test position).
-// With MANUAL_Z_HOME_POS=-1: 1 mm up from trigger = 1 mm gap.
-// This point is the Z=0 reference that the user verifies with paper-test.
-// Slicer Z=0.2 → physical 1.2 mm gap (ideal for layer 1).
-#define Z_AFTER_HOMING 0               // (mm) Z height after homing (G28)
+// SD1-3.2: back to stock — undefined, as upstream Marlin ships it. With no definition
+// the `#if defined(Z_AFTER_HOMING)` block in G28.cpp:469-470 drops out entirely and Z
+// simply stays where homing left it, i.e. at Z_HOME_POS = 0, the endstop trigger point.
+// This is ordinary Marlin behaviour: after G28 the nozzle sits on the bed and the
+// slicer's start G-code lifts it. The DWIN screen reads 0.00, and that 0.00 is now
+// truthful — under the old SD1-1.3 zero it read 0.00 while the bed was 1 mm away.
+//
+// SD1-1.2 had defined it as 0, justified as "a known safe altitude that clarifies the
+// reference for 2 parallel Z motors". That rationale does not hold: parking height has
+// no bearing on how two motors on one driver align, and under the SD1-1.3 zero the
+// value 0 was not a safe altitude either — it was the 1 mm offset in disguise.
+// Removed rather than re-tuned; the bed has been verified flat, so there is nothing
+// left for a park height to protect against.
+//#define Z_AFTER_HOMING 1             // (mm) Z height after homing (G28)
 
 // When G28 is called, this option will make Y home before X
 //#define HOME_Y_BEFORE_X
@@ -757,12 +766,18 @@
 // Default stepper release if idle. Set to 0 to deactivate.
 // Steppers will shut down DEFAULT_STEPPER_DEACTIVE_TIME seconds after the last move when DISABLE_INACTIVE_? is true.
 // Time can be set by M18 and M84.
-// Sermoon D1 note: Default 120 (2 min) was too short; typical filament change
-// or layer adjust was interrupting pauses. 300 (5min) optimal:
-// - Most manual pause situations will not be interrupted
-// - Thermal stress of TMC2208 standalone drivers is limited in a closed cabinet
-// - Z lock module zaten Z pozisyonunu mekanik olarak koruyor
-#define DEFAULT_STEPPER_DEACTIVE_TIME 300
+// SD1-3.1: 300 -> 60. The previous 300 s was chosen to stop manual pauses from
+// being interrupted, but that reasoning never applied: manage_inactivity() resets
+// the timeout on every pass while the print is paused (Marlin.cpp:475-478, where
+// printingIsPaused() = did_pause_print || print_job_timer.isPaused() ||
+// IS_SD_PAUSED()), and PAUSE_PARK_NO_STEPPER_TIMEOUT (line 1933) additionally
+// excludes M600 through MOVE_AWAY_TEST. Steppers cannot time out during a
+// filament change or a paused print at ANY value here.
+// 60 s therefore only affects a genuinely idle machine — not printing, not
+// paused — where releasing the motors sooner reduces idle heat inside the closed
+// cabinet and the standing thermal load on the TMC2208 standalone drivers.
+// Z is held mechanically by the Z lock module, so DISABLE_INACTIVE_Z true is safe.
+#define DEFAULT_STEPPER_DEACTIVE_TIME 60
 #define DISABLE_INACTIVE_X true
 #define DISABLE_INACTIVE_Y true
 #define DISABLE_INACTIVE_Z true  // Set to false if the nozzle will fall down on your printed part when print has finished.
@@ -1599,10 +1614,14 @@
 // G2/G3 Arc Support
 //
 // Sermoon D1 optimizasyon (2026-05-23): MM_PER_ARC_SEGMENT 1 → 2.
-// 1mm segment + MIN_ARC_SEGMENTS 24 + BLOCK_BUFFER_SIZE 16 → small arcs
-// for hundreds of small blocks. 2mm segment with BLOCK_BUFFER_SIZE 16
-// daha iyi flow continuity saglar. Test edilmis slicer-ciktilarinda
-// kalite degisimi yok.
+// Gerekce o tarihte BLOCK_BUFFER_SIZE 16 idi: 1mm segment + MIN_ARC_SEGMENTS 24
+// ile kucuk yaylar yuzlerce kisa bloga bolunuyor, tampon bosaliyordu. 2mm segment
+// flow continuity'yi duzeltti; slicer ciktilarinda kalite degisimi olculmedi.
+//
+// SD1-3.1 notu: BLOCK_BUFFER_SIZE o zamandan beri 32'ye cikti, yani yukaridaki
+// gerekce artik gecerli degil. 1mm'e donmek yay cozunurlugunu iki katina cikarir
+// (kiris hatasi R=20mm'de 0.025mm → 0.006mm). Deger olculmeden degistirilmedi;
+// donulecekse yay agirlikli bir baskiyla tampon dolulugu dogrulanmali.
 #define ARC_SUPPORT               // Disable this feature to save ~3226 bytes
 #if ENABLED(ARC_SUPPORT)
   #define MM_PER_ARC_SEGMENT  2   // Length of each arc segment (1 → 2 for buffer efficiency)
@@ -1836,7 +1855,11 @@
   #endif
   #define RETRACT_LENGTH 3                // (mm) Default retract length (positive value)
   #define RETRACT_LENGTH_SWAP 13          // (mm) Default swap retract length (positive value)
-  #define RETRACT_FEEDRATE 45             // (mm/s) Default feedrate for retracting
+  // SD1-3.1: 45 -> 25. The planner clamps every block to DEFAULT_MAX_FEEDRATE
+  // (Configuration.h), where E is 25 mm/s, so 45 was silently executed as 25
+  // (planner.cpp:2032-2038). The value now states what actually happens.
+  // To retract faster, raise the E entry of DEFAULT_MAX_FEEDRATE first.
+  #define RETRACT_FEEDRATE 25             // (mm/s) Default feedrate for retracting
   #define RETRACT_ZRAISE 0                // (mm) Default retract Z-raise
   #define RETRACT_RECOVER_LENGTH 0        // (mm) Default additional recover length (added to retract length on recover)
   #define RETRACT_RECOVER_LENGTH_SWAP 0   // (mm) Default additional swap recover length (added to retract length on recover from toolchange)
@@ -1888,7 +1911,8 @@
  */
 #define ADVANCED_PAUSE_FEATURE
 #if ENABLED(ADVANCED_PAUSE_FEATURE)
-  #define PAUSE_PARK_RETRACT_FEEDRATE         60  // (mm/s) Initial retract feedrate.
+  // SD1-3.1: 60 -> 25, capped by the E axis DEFAULT_MAX_FEEDRATE. See RETRACT_FEEDRATE above.
+  #define PAUSE_PARK_RETRACT_FEEDRATE         25  // (mm/s) Initial retract feedrate.
   #define PAUSE_PARK_RETRACT_LENGTH            2  // (mm) Initial retract.
                                                   // This short retract is done immediately, before parking the nozzle.
   #define FILAMENT_CHANGE_UNLOAD_FEEDRATE     10  // (mm/s) Unload filament feedrate. This can be pretty fast.
