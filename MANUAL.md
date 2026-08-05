@@ -1,4 +1,4 @@
-﻿# MarlinV2 by CTK â€” Sermoon D1 Firmware Manual
+# MarlinV2 by CTK â€” Sermoon D1 Firmware Manual
 
 **Firmware:** MarlinV2 by CTK (Marlin 2.0.x bugfix branch)  
 **Printer:** Creality Sermoon D1  
@@ -169,17 +169,20 @@ LIN_ADVANCE active, K calibration reminder.
 
 ### 4.1 Flashing via SD Card
 
-1. Copy the `firmware.bin` file to the root directory of a FAT32 formatted SD card
-2. Insert the SD card while the printer is off
-3. Turn on the printer â€” the bootloader automatically flashes the firmware
-4. Flashing takes ~10-20 seconds
-5. When the screen turns on, check the "MarlinV2 by CTK" version
+1. Rename the compiled firmware to a **unique name** (e.g., `firmware_v2.bin`). *The Creality motherboard will NOT flash the firmware if the filename exactly matches the previously installed version.*
+2. Copy this `.bin` file to the root directory of a FAT32 formatted SD card
+3. Insert the SD card while the printer is off
+4. Turn on the printer — the bootloader automatically flashes the firmware
+5. Flashing takes ~10-20 seconds
+6. When the screen turns on, check the "MarlinV2 by CTK" version
+7. **CRITICAL:** Turn off the printer, remove the SD card, and **delete the `.bin` firmware file from it**. Never leave a firmware file on the SD card when printing normal GCODEs.
 
 ### 4.2 Important Notes
 
+- **The filename must be different every time you flash.**
 - There must be no other `.bin` file on the SD card
-- The bootloader writes to address 0x08007000 â€” creality.py and creality.ld provide this offset
-- EEPROM settings might be reset after flashing â†’ restore factory settings with `M502` + `M500`
+- The bootloader writes to address 0x08007000 — creality.py and creality.ld provide this offset
+- EEPROM settings might be reset after flashing → restore factory settings with `M502` + `M500`
 
 ---
 

@@ -63,9 +63,13 @@ Download the latest compiled `firmware.bin` from [GitHub Releases](https://githu
 pio run -e creality -t upload
 ```
 
-### 3. Pre-flash safety (recommended)
+### 3. Pre-flash safety & Flashing
 
-Backup existing settings before flashing the new firmware:
+1. **Unique Filename:** Rename `firmware.bin` to a unique name (e.g., `fw_v2.bin`). *The board ignores the file if the name matches the previously flashed firmware!*
+2. **Flash:** Insert the SD card while powered off, then turn it on. Wait 10-20 seconds.
+3. **Cleanup:** **CRITICAL:** Turn off the printer, remove the SD card, and **DELETE the `.bin` file** from it. Never leave a firmware file on the card when printing normal GCODEs.
+
+Backup existing settings before flashing:
 ```
 docs/eeprom_backup.gcode
 ```
