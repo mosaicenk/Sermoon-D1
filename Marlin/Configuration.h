@@ -400,11 +400,11 @@
 
 // Below this temperature the heater will be switched off
 // because it probably indicates a broken thermistor wire.
-// MINTEMP = kopuk/kisa devreli termistor korumasi. Bu esigin ALTINDA
-// olculen sicaklik "termistor arizali" sayilir ve isitici kapatilir.
-// Stock Creality degeri 0 idi => koruma pratikte devre disi kaliyordu.
-// Marlin varsayilani 5'e cekildi. Yazici 5C alti bir ortamda calistirilacaksa
-// (isitilmayan atolye) bu deger dusurulebilir; 0 yapilmamalidir.
+// MINTEMP = broken/shorted thermistor protection. A temperature measured
+// BELOW this threshold counts as "thermistor faulty" and the heater is
+// switched off. The stock Creality value was 0 => protection was effectively
+// disabled. Raised to the Marlin default of 5. If the printer will run in a
+// sub-5C environment (unheated workshop) this can be lowered; never set 0.
 #define HEATER_0_MINTEMP   5
 #define HEATER_1_MINTEMP   5
 #define HEATER_2_MINTEMP   5
@@ -917,10 +917,11 @@
  * A Fix-Mounted Probe either doesn't deploy or needs manual deployment.
  *   (e.g., an inductive probe or a nozzle-based probe-switch.)
  */
-// KAPALI — bu yazicida Z-probe YOK (BLTouch de enduktif sensor de takili degil).
-// PB0/PB1 pinleri SERMOON_Z_LOCK modulune ayrilmistir; probe acilirsa pin
-// catismasi olusur. Probe takmak istersen once Configuration_adv.h'da
-// SERMOON_Z_LOCK'u kapat, sonra burayi ac. Bkz. MANUAL.md bolum 10.
+// DISABLED — this printer has NO Z-probe (neither a BLTouch nor an
+// inductive sensor is installed). The PB0/PB1 pins are reserved for the
+// SERMOON_Z_LOCK module; enabling a probe would create a pin conflict.
+// To install a probe: first disable SERMOON_Z_LOCK in Configuration_adv.h,
+// then uncomment here. See MANUAL.md section 10.
 //#define FIX_MOUNTED_PROBE
 
 /**
@@ -2100,15 +2101,16 @@
   // PLR data stored at END of EEPROM to avoid overlapping with Marlin settings.
   // Old value (100) collided with EEPROM_OFFSET (100), corrupting settings on power loss.
   //
-  // BL24C16 = 2048 byte, gecerli aralik 0x000..0x7FF (E2END = 0x7FF).
-  // sizeof(job_recovery_info_t) = 196 byte (ELF sembolunden olculdu; bu konfig
-  // icin FWRETRACT + volumetric alanlari dahil — eski "~120 byte" yorumu yanlisti).
+  // BL24C16 = 2048 bytes, valid range 0x000..0x7FF (E2END = 0x7FF).
+  // sizeof(job_recovery_info_t) = 196 bytes (measured from the ELF symbol;
+  // for this config FWRETRACT + volumetric fields included — the old
+  // "~120 bytes" comment was wrong).
   //
-  // PLR_ADDR = 2048 - 196 = 1852  =>  kapsanan aralik 1852..2047.
-  // Bu aralik 24C16'nin 7. blogunun (1792..2047) icinde kalir: ne cip sinirini
-  // asar ne de 256-byte blok sinirini geler. Her ikisi de kritiktir, cunku
-  // 24C16'da blok-secim bitleri I2C kontrol byte'indadir ve sequential read
-  // sirasinda otomatik artmaz.
+  // PLR_ADDR = 2048 - 196 = 1852  =>  covered range 1852..2047.
+  // This range stays inside the 24C16's 7th block (1792..2047): it neither
+  // exceeds the chip boundary nor crosses a 256-byte block boundary. Both
+  // are critical, because on the 24C16 the block-select bits live in the
+  // I2C control byte and do not auto-increment during sequential reads.
   #define PLR_ADDR (E2END + 1 - sizeof(job_recovery_info_t))
 #endif
 

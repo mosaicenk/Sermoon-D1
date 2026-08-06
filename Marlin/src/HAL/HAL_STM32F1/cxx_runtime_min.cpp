@@ -1,34 +1,36 @@
 /**
  * Marlin 3D Printer Firmware — Sermoon D1 fork
  *
- * Minimal C++ runtime — libstdc++ sisme onleyici.
+ * Minimal C++ runtime — libstdc++ bloat preventer.
  *
- * SORUN
- * libstdc++'in varsayilan std::terminate isleyicisi
- * __gnu_cxx::__verbose_terminate_handler(), yakalanmamis bir istisnanin TIP
- * ADINI insan-okunur hale getirmek icin __cxa_demangle() cagirir. Bu tek
- * referans, libiberty'nin C++ isim cozumleyicisinin TAMAMINI binary'ye baglar:
- * d_print_comp (11.448 B), d_type (2.020 B), cplus_demangle_operators,
- * d_encoding, d_exprlist, d_print_mod ... toplam 44 sembol.
+ * PROBLEM
+ * libstdc++'s default std::terminate handler,
+ * __gnu_cxx::__verbose_terminate_handler(), calls __cxa_demangle() to make
+ * the TYPE NAME of an uncaught exception human-readable. That single
+ * reference links libiberty's ENTIRE C++ name demangler into the binary:
+ * d_print_comp (11,448 B), d_type (2,020 B), cplus_demangle_operators,
+ * d_encoding, d_exprlist, d_print_mod ... 44 symbols in total.
  *
- * OLCUM (arm-none-eabi-nm, SD1-2.2 taban binary):
- *   cozumleyici ailesi = 28.824 byte flash  -> firmware'in %15,6'si
+ * MEASURED (arm-none-eabi-nm, SD1-2.2 base binary):
+ *   demangler family = 28,824 bytes flash -> 15.6% of the firmware
  *
- * Marlin hicbir yerde istisna atmaz/yakalamaz; bu kodun tamami erisilemez.
+ * Marlin never throws/catches exceptions anywhere; all of that code is
+ * unreachable.
  *
- * COZUM
- * Asagidaki tanim libstdc++'in zayif surumunu link zamaninda gecersiz kilar.
- * Artik __cxa_demangle'a referans kalmadigi icin linker cozumleyiciyi
- * iceren arsiv uyelerini hic cekmez.
+ * SOLUTION
+ * The definition below overrides libstdc++'s weak version at link time.
+ * With no reference to __cxa_demangle left, the linker never pulls the
+ * archive members containing the demangler.
  *
- * DAVRANIS
- * std::terminate pratikte cagrilamaz (istisna yok). Yine de cagrilirsa Cortex-M3
- * sistem reset'i tetiklenir.
+ * BEHAVIOR
+ * std::terminate is effectively uncallable (no exceptions). If it ever is
+ * called, a Cortex-M3 system reset is triggered.
  *
- * NEDEN RESET, "kesmeleri kapat + dur" DEGIL: kesmeleri kapatip donmak, o anda
- * HIGH olan bir isitici pinini kalici HIGH birakir — soft-PWM ISR'i artik
- * calismadigi icin isitici surekli acik kalir (termal kacak). Reset ise tum
- * GPIO'yu donanimsal olarak giris moduna dondurur => isiticilar garantili kapali.
+ * WHY RESET, NOT "disable interrupts + halt": disabling interrupts and
+ * spinning would leave a heater pin that is HIGH at that moment HIGH
+ * forever — with the soft-PWM ISR no longer running, the heater stays on
+ * continuously (thermal runaway). A reset instead returns all GPIO to
+ * input mode in hardware => heaters guaranteed off.
  */
 
 #ifdef __STM32F1__
@@ -36,30 +38,32 @@
 #include <stdint.h>
 
 /**
- * LINK-ZAMANI VARLIK NOBETCISI
+ * LINK-TIME PRESENCE GUARD
  *
- * SORUN: bu dosya kaybolursa (git clean, eksik commit, taze klon) derleme
- * SESSIZCE BASARILI olur. Sadece libstdc++'in zayif __verbose_terminate_handler
- * geri gelir, cozumleyici zinciri yeniden linklenir ve firmware ~28,8 KB
- * buyur. Hicbir hata verilmez — regresyon fark edilmez.
+ * PROBLEM: if this file goes missing (git clean, incomplete commit, fresh
+ * clone) the build still SUCCEEDS SILENTLY. Only libstdc++'s weak
+ * __verbose_terminate_handler comes back, the demangler chain is re-linked
+ * and the firmware grows by ~28.8 KB. No error is raised — the regression
+ * goes unnoticed.
  *
- * COZUM: burada mutlak (absolute) bir sembol tanimlanir; common-cxxflags.py
- * icindeki -Wl,--undefined=... bu sembolu link icin ZORUNLU kilar. Dosya
- * yoksa link "undefined reference" ile durur.
+ * SOLUTION: an absolute symbol is defined here; the -Wl,--require-defined=
+ * in common-cxxflags.py makes that symbol MANDATORY for the link. If the
+ * file is absent, the link stops with "symbol required but not defined".
  *
- * MALIYET: .set mutlak sembol uretir, hicbir section'a yer ayirmaz => 0 byte.
- * (Olculdu: nobetci eklendikten sonra firmware boyutu degismedi.)
+ * COST: .set produces an absolute symbol, reserves no space in any
+ * section => 0 bytes. (Measured: firmware size unchanged after the guard
+ * was added.)
  */
 __asm__(".globl sermoon_cxx_runtime_min_present\n"
         ".set   sermoon_cxx_runtime_min_present, 0\n");
 
-// SCB->AIRCR = VECTKEY(0x5FA) | SYSRESETREQ — ARMv7-M mimari standardi,
-// libmaple/CMSIS basligina bagimli degil. Reset tum GPIO'yu giris moduna
-// dondurur => isiticilar garantili kapali.
+// SCB->AIRCR = VECTKEY(0x5FA) | SYSRESETREQ — ARMv7-M architecture
+// standard, independent of the libmaple/CMSIS headers. The reset returns
+// all GPIO to input mode => heaters guaranteed off.
 static inline void sermoon_system_reset() {
   *(volatile uint32_t *)0xE000ED0CUL = (0x5FAUL << 16) | (1UL << 2);
   __asm__ volatile("dsb");
-  for (;;) {}   // reset devreye girene kadar
+  for (;;) {}   // until the reset kicks in
 }
 
 namespace __gnu_cxx {
@@ -67,10 +71,10 @@ namespace __gnu_cxx {
 }
 
 /**
- * NOT — __cxa_pure_virtual burada TANIMLANMAZ.
- * maple framework'u zaten saglar (cores/maple/cxxabi-compat.cpp), dolayisiyla
- * o referans libsupc++'i cekmiyor. Burada ikinci bir tanim vermek
- * "multiple definition" link hatasi uretir (denendi, dogrulandi).
+ * NOTE — __cxa_pure_virtual is NOT defined here.
+ * The maple framework already provides it (cores/maple/cxxabi-compat.cpp),
+ * so that reference does not pull in libsupc++. Defining it a second time
+ * here produces a "multiple definition" link error (tried, verified).
  */
 
 #endif // __STM32F1__

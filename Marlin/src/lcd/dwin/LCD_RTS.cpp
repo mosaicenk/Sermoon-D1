@@ -466,17 +466,17 @@
     RTS_SndData(0, MOTOR_STATUS_ICON_VP); // Engine disabled indicator
     Motor_Switch = 0;
 
-    /***************Sıcaklığı ekrana yaz*****************/
+    /***************Write temperatures to the screen*****************/
     RTS_SndData(0, NOZZLE_PREHEAT_DATA_VP);
     RTS_SndData(0, BED_PREHEAT_DATA_VP);
     RTS_SndData(thermalManager.temp_hotend[0].celsius, NOZZLE_TEMP_DATA_VP);
     RTS_SndData(thermalManager.temp_bed.celsius, BED_TEMP_DATA_VP);
 
-    /***************Fan hızını ekrana yaz*****************/
+    /***************Write fan speed to the screen*****************/
     thermalManager.set_fan_speed(0, FanOff);
     RTS_SndData(0, FAN_SWITCH_ICON_VP);
     
-    /***************Yazıcı bilgilerini ekrana yaz*****************/
+    /***************Write printer info to the screen*****************/
     RTS_SndData(SOFTVERSION, FW_VERSION_TEXT_VP);
 
     if(LanguageRecbuf != 0)
@@ -484,7 +484,7 @@
     else
       RTS_SndData(CORP_WEBSITE_E, WEBSITE_ABOUT_CHAR_VP);
 
-    /************************Ekran temizliği*******************************/
+    /************************Screen cleanup*******************************/
     for(int i = 0;i < MaxFileNumber;i++)
     {
         for(int j = 0;j < 10;j++)
@@ -500,7 +500,7 @@
     }
     memset(&CardRecbuf,0,sizeof(CardRecbuf));
 
-    /*********SD kart dosya adlarını ekrana gönder***************/
+    /*********Send SD card file names to the screen***************/
     RTS_SDCardInit();
 
     rtscheck.RTS_SndData(ExchangePageBase, ExchangepageAddr);           // Boot progress bar
@@ -828,10 +828,10 @@
 
   void RTSSHOW::RTS_HandleData()
   {
-    // Guvenli baslangic degerleri: asagidaki eksen-hareket case'inde if-zinciri
-    // beklenmedik bir VP adresiyle dusarse current_position[axis] sinir disi
-    // dizi yazmasina donusurdu. Varsayilan X_AXIS + sifir aralik, boyle bir
-    // durumda hareketi etkisiz kilar.
+    // Safe initial values: if the if-chain in the axis-move case below
+    // falls through with an unexpected VP address, current_position[axis]
+    // would become an out-of-bounds array write. Defaulting to X_AXIS +
+    // zero range makes the move a no-op in that case.
     AxisEnum axis = X_AXIS;
     float min = 0, max = 0;
 

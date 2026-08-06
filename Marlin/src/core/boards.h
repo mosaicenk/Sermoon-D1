@@ -26,7 +26,7 @@
 #define BOARD_UNKNOWN -1
 
 //
-// Sermoon D1 — yalnız desteklenen anakart
+// Sermoon D1 — the only supported motherboard
 //
 #define BOARD_CREALITY                4019  // Creality V4.3.1 (STM32F103RE)
 

@@ -3,11 +3,12 @@
  *
  * Changes.h — Compile-time deprecated configuration detection
  *
- * Backport from Marlin 2.1.x. Eski isim kullanan kullanıcı configurations'ı
- * uyarır ve yeni isimlere yönlendirir.
+ * Backport from Marlin 2.1.x. Warns users whose configurations use the old
+ * names and points them at the new ones.
  *
- * Bu dosya Sermoon-relevant subset içerir; tüm Marlin tarihsel rename'leri
- * değil. Sermoon kullanıcısının likely yapacağı hatalara odaklı.
+ * This file contains only the Sermoon-relevant subset — not Marlin's full
+ * historical rename list. Focused on the mistakes a Sermoon user is likely
+ * to make.
  */
 #pragma once
 
@@ -39,8 +40,8 @@
   #error "SDCARDDETECTINVERTED is now SD_DETECT_INVERTED (or SD_DETECT_STATE in modern Marlin)."
 #endif
 
-// NOT: Sermoon stock kodu hâlâ SD_DETECT_INVERTED kullanır (modern adı
-// SD_DETECT_STATE). Code tabanı geçişine kadar bu rename forced değil.
+// NOTE: Sermoon stock code still uses SD_DETECT_INVERTED (modern name:
+// SD_DETECT_STATE). This rename is not forced until the codebase migrates.
 
 #ifdef BTENABLED
   #error "BTENABLED is now BLUETOOTH."

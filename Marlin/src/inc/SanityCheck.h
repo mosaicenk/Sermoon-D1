@@ -2570,22 +2570,22 @@ static_assert(   _ARR_TEST(3,0) && _ARR_TEST(3,1) && _ARR_TEST(3,2)
 #endif
 
 // ===========================================================================
-// Sermoon D1'e ozgu tutarlilik kontrolleri
+// Sermoon D1 specific consistency checks
 // ===========================================================================
 
 /**
- * Z Lock ve Z Probe ayni fiziksel pinleri (PB0/PB1, board'un "BLTouch"
- * konnektoru) paylasir. Ikisi ayni anda etkin olursa Marlin ayni pini hem
- * OUTPUT (lock, HIGH surulur) hem INPUT (probe) yapmaya calisir. Bu, sessizce
- * yanlis davranisa yol acar: setup() sirasinda endstops.init() zlock.init()'ten
- * SONRA calistigi icin pin input'a doner ve Z lock islevini kaybeder; ayrica
- * WRITE() STM32F1'de pin modunu degistirmedigi icin M888 bundan sonra lock
- * yerine probe pininin pull-up/pull-down bias'ini oynatir.
+ * Z Lock and Z Probe share the same physical pins (PB0/PB1, the board's
+ * "BLTouch" connector). If both are enabled, Marlin tries to drive the same
+ * pin as OUTPUT (lock, driven HIGH) and INPUT (probe) at once. That fails
+ * silently: endstops.init() runs AFTER zlock.init() in setup(), so the pin
+ * reverts to input and the Z lock is lost; and since WRITE() does not
+ * change the pin mode on STM32F1, M888 would then toggle the probe pin's
+ * pull-up/pull-down bias instead of the lock.
  */
 #if ENABLED(SERMOON_Z_LOCK) && HAS_BED_PROBE
-  #error "SERMOON_Z_LOCK ve Z probe ayni pinleri (PB0/PB1) kullanir. Birini kapatin: probe kullanacaksaniz Configuration_adv.h'da SERMOON_Z_LOCK'u kapatin."
+  #error "SERMOON_Z_LOCK and the Z probe use the same pins (PB0/PB1). Disable one of them: to use a probe, turn off SERMOON_Z_LOCK in Configuration_adv.h."
 #endif
 
-// NOT: PLR bolgesinin EEPROM sinirlari ve 256-byte blok sinirlari icinde
-// kaldigi, sizeof() gerektirdigi icin preprocessor ile degil static_assert ile
-// dogrulanir — bkz. src/feature/powerloss.cpp.
+// NOTE: The PLR region is verified to stay within the EEPROM bounds and the
+// 256-byte block bounds via static_assert — not the preprocessor — because
+// it requires sizeof(). See src/feature/powerloss.cpp.

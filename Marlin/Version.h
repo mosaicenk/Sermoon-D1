@@ -33,8 +33,9 @@
  * Base: Stock Creality Sermoon D1 V1.1.10 (Marlin 2.0.x bugfix branch)
  * Custom fork build identifier: Sermoon-D1-X.Y
  *
- * NOT: DWIN ekran SOFTVERSION (= bu) ile FW_VERSION_TEXT_VP slot'unu doldurur,
- * on-screen character space limited to ~14 characters; long strings can be trimmed.
+ * NOTE: The DWIN screen fills the FW_VERSION_TEXT_VP slot with SOFTVERSION
+ * (this value); on-screen space is limited to ~14 characters, longer strings
+ * get clipped.
  */
 // ###########################################################################
 // # NOTE: This file is included via macro expansion (MarlinConfigPre.h:42   #
@@ -47,13 +48,14 @@
 // # 0 units and the binary kept the OLD version string silently.            #
 // ###########################################################################
 //
-// Must be kept THE SAME as the fork version: CHANGELOG.md header, README "Version"
-// row and the value here are updated together. Which binary in the field?
-// It is only understood from this that it is installed (M115 and DWIN screen prints this value).
+// Must stay in sync with the fork version: the CHANGELOG.md header and the
+// README "Version" row are updated together with this value. Since M115 and
+// the DWIN screen print this string, it is the only way to tell which fork
+// build is installed on a printer in the field.
 //
-// Old value was "MarlinV2 by CTK": 15 characters, above ~14 characters
-// It was exceeding the DWIN slot (it was clipping on the screen) and which fork version
-// It didn't say it was installed. Moved attribution to DETAILED_BUILD_VERSION.
+// The old value "MarlinV2 by CTK" was 15 characters — over the ~14 character
+// DWIN slot, so it clipped on screen, and it said nothing about which fork
+// version was installed. Attribution moved to DETAILED_BUILD_VERSION.
 #define SHORT_BUILD_VERSION "SD1-3.2"
 
 /**

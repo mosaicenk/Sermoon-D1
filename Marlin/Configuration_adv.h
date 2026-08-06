@@ -578,7 +578,7 @@
 #define X_HOME_BUMP_MM 5
 #define Y_HOME_BUMP_MM 5
 #define Z_HOME_BUMP_MM 2
-// SD1-1.2: Z slow pass divisor 1 → 4 → Z slow pass 4 mm/s yerine 1 mm/s.
+// SD1-1.2: Z slow pass divisor 1 → 4 → Z slow pass 4 mm/s instead of 1 mm/s.
 // For endstop-consistent co-located triggering of 2 Z motors connected in parallel.
 // SD1-2.9: X/Y slow pass divisor 2 -> 4 (X/Y re-bump 4.1 mm/s instead of 8.3 mm/s - higher repeatability)
 #define HOMING_BUMP_DIVISOR { 4, 4, 4 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
@@ -790,11 +790,11 @@
 
 // Minimum time that a segment needs to take if the buffer is emptied
 //
-// Sermoon D1 optimizasyon (2026-05-23): 20000 → 8000 µs.
-// 20000 µs (20ms) cok uzun; retract/fine hareketlerde gereksiz yavaslama
-// ve SLOWDOWN ile print kalitesi kaybi. 8000 µs (8ms) tipik Cartesian
-// printerlar icin optimal — yavaslamayi minimumda tutarken ISR overrun
-// riski olusturmaz.
+// Sermoon D1 optimization (2026-05-23): 20000 → 8000 µs.
+// 20000 µs (20ms) is too long; unnecessary slowdown on retract/fine moves
+// plus print-quality loss with SLOWDOWN. 8000 µs (8ms) is optimal for a
+// typical Cartesian printer — keeps slowdown to a minimum without creating
+// ISR overrun risk.
 #define DEFAULT_MINSEGMENTTIME        8000    // (µs, NOT ms — Marlin settings.cpp:2249)
 
 // If defined the movements slow down when the look ahead buffer is only half full
@@ -911,12 +911,13 @@
 // ADAPTIVE_STEP_SMOOTHING doubles the effective step rate in this range
 // closes the gap. It should not be turned off after switching to HR4988SQ.
 //
-// UYARI: Configuration_adv.h'daki INTERPOLATE / *_MICROSTEPS / *_CURRENT
-// definitions are in the `#if HAS_TRINAMIC` block and there are NO
-// DERLENMEZ (drivers.h:80 — "Does not match standalone configurations").
-// Drivers are soldered to the board, there is no module with separate jumpers (via board photo 2026-07-24
-// verified). Microstepping is fixed on the PCB in both driver families.
-// coated; cannot be changed from software.
+// WARNING: The INTERPOLATE / *_MICROSTEPS / *_CURRENT definitions in
+// Configuration_adv.h live inside the `#if HAS_TRINAMIC` block and are NOT
+// COMPILED on this board (drivers.h:80 — "Does not match standalone
+// configurations"). The drivers are soldered to the board; there is no
+// module with separate jumpers (verified via board photo, 2026-07-24).
+// Microstepping is fixed on the PCB in both driver families; it cannot be
+// changed from software.
 #define ADAPTIVE_STEP_SMOOTHING
 
 /**
@@ -1052,13 +1053,13 @@
 // Add an 'M73' G-code to set the current percentage
 //
 // Sermoon D1 (2026-05-23): SHOW_REMAINING_TIME — DWIN exclusive.
-// Marlin'in orijinal `SHOW_REMAINING_TIME`/`LCD_SET_PROGRESS_MANUALLY`
-// sadece HAS_GRAPHICAL_LCD veya EXTENSIBLE_UI istiyor; Sermoon DWIN
-// ekran kullaniyor (ikisi de degil). Bu yuzden Marlin'in standart
-// display yolunu acamiyoruz. DWIN icin ozellesmis bir hesaplayici
-// ekledik (LCD_RTS.cpp::EachMomentUpdate, PRINT_REMAIN_MIN_VP).
-// Hesaplama: linear extrapolation (elapsed_sec * (100-pct) / pct / 60).
-// M73 slicer komutu SU AN DESTEKLENMIYOR (ileride eklenebilir).
+// Marlin's original `SHOW_REMAINING_TIME`/`LCD_SET_PROGRESS_MANUALLY`
+// require HAS_GRAPHICAL_LCD or EXTENSIBLE_UI; the Sermoon uses a DWIN
+// screen (neither of the two). That is why Marlin's standard display path
+// cannot be enabled. A DWIN-specific estimator was added instead
+// (LCD_RTS.cpp::EachMomentUpdate, PRINT_REMAIN_MIN_VP).
+// Calculation: linear extrapolation (elapsed_sec * (100-pct) / pct / 60).
+// The M73 slicer command is NOT SUPPORTED at this time (can be added later).
 //#define LCD_SET_PROGRESS_MANUALLY
 
 // Show the E position (filament used) during printing
@@ -1613,15 +1614,16 @@
 //
 // G2/G3 Arc Support
 //
-// Sermoon D1 optimizasyon (2026-05-23): MM_PER_ARC_SEGMENT 1 → 2.
-// Gerekce o tarihte BLOCK_BUFFER_SIZE 16 idi: 1mm segment + MIN_ARC_SEGMENTS 24
-// ile kucuk yaylar yuzlerce kisa bloga bolunuyor, tampon bosaliyordu. 2mm segment
-// flow continuity'yi duzeltti; slicer ciktilarinda kalite degisimi olculmedi.
+// Sermoon D1 optimization (2026-05-23): MM_PER_ARC_SEGMENT 1 → 2.
+// Rationale at the time: BLOCK_BUFFER_SIZE was 16 — with 1mm segments +
+// MIN_ARC_SEGMENTS 24, small arcs were split into hundreds of tiny blocks
+// and the buffer starved. 2mm segments fixed flow continuity; no quality
+// change was measured on slicer output.
 //
-// SD1-3.1 notu: BLOCK_BUFFER_SIZE o zamandan beri 32'ye cikti, yani yukaridaki
-// gerekce artik gecerli degil. 1mm'e donmek yay cozunurlugunu iki katina cikarir
-// (kiris hatasi R=20mm'de 0.025mm → 0.006mm). Deger olculmeden degistirilmedi;
-// donulecekse yay agirlikli bir baskiyla tampon dolulugu dogrulanmali.
+// SD1-3.1 note: BLOCK_BUFFER_SIZE has since been raised to 32, so the
+// rationale above no longer holds. Going back to 1mm would double arc
+// resolution (chord error at R=20mm: 0.025mm → 0.006mm). Not changed
+// without measurement; if reverted, verify buffer fill with an arc-heavy print.
 #define ARC_SUPPORT               // Disable this feature to save ~3226 bytes
 #if ENABLED(ARC_SUPPORT)
   #define MM_PER_ARC_SEGMENT  2   // Length of each arc segment (1 → 2 for buffer efficiency)
@@ -1748,12 +1750,13 @@
 // The number of linear motions that can be in the plan at any give time.
 // THE BLOCK_BUFFER_SIZE NEEDS TO BE A POWER OF 2 (e.g. 8, 16, 32) because shifts and ors are used to do the ring-buffering.
 //
-// Sermoon D1 optimizasyon (2026-05-23): 16 → 32.
+// Sermoon D1 optimization (2026-05-23): 16 → 32.
 // 16 block bottleneck with SDIO + DWIN display + ARC segment + SLOWDOWN.
-// RAM %21.7 kullanimda, +512 byte guvenli. Flow continuity belirgin
-// iyilesir, ozellikle kucuk yay/corner hareketlerinde.
-// Sermoon D1'de SDSUPPORT her zaman acik ve tek hedef bu kart oldugu icin
-// kosullu dallanma gereksizdi (her iki dal da 32 idi) — sadelestirildi.
+// RAM usage at 21.7%, +512 bytes is safe. Flow continuity improves
+// noticeably, especially on small arc/corner moves.
+// On the Sermoon D1 SDSUPPORT is always on and this board is the only
+// target, so the conditional branching was unnecessary (both branches
+// were 32) — simplified.
 #define BLOCK_BUFFER_SIZE 32
 
 // @section serial
@@ -2069,27 +2072,27 @@
 // # true olur. drivers.h:80 bunu acikca soyluyor:                            #
 // #     "Test for supported TMC drivers that require advanced configuration   #
 // #      — Does not match standalone configurations"                          #
-// # Bu kartta X/Y = TMC2208_STANDALONE, Z/E0 = A4988 (HR4988SQ).             #
-// # Hicbiri eslesmiyor → HAS_TRINAMIC = false → blok #if ile disarida kalir. #
+// # On this board X/Y = TMC2208_STANDALONE, Z/E0 = A4988 (HR4988SQ).       #
+// # None of them match → HAS_TRINAMIC = false → the block is compiled out. #
 // #                                                                          #
-// # SONUC: buradaki *_CURRENT, *_MICROSTEPS, *_RSENSE, INTERPOLATE,          #
+// # RESULT: NONE of the *_CURRENT, *_MICROSTEPS, *_RSENSE, INTERPOLATE,      #
 // # STEALTHCHOP_*, HYBRID_THRESHOLD, CHOPPER_TIMING, MONITOR_DRIVER_STATUS   #
-// # degerlerinin HICBIRI calismaz. Degistirmek davranisi ETKILEMEZ.          #
+// # values below take effect. Changing them DOES NOT change behavior.        #
 // #                                                                          #
-// # Gercek donanim ayarlari (dogrulanmis, 2026-07-23):                       #
-// #   Akim   : Vref potuyla. X/Y 1.27 V, Z 1.60 V, E0 0.86 V.                #
-// #            R_sense = 0.15 ohm (R150), tum surucular, sarim basina 2 adet.#
-// #            Karsiligi: X/Y 0.69 A RMS, Z 0.47 A/motor, E0 0.51 A RMS.     #
-// #            Motorlar Creality 42-40 (~1.0 A nominal) → %47-69 arasi.      #
-// #   Mikroadim: surucu karta lehimli, jumper YOK (board fotografiyla         #
-// #              dogrulandi, 2026-07-24). MS1/MS2 PCB'de sabit kablanmis,    #
-// #              MCU'ya bagli degil, 16x → M350 de calismaz.                 #
-// #   256x interpolasyon: yalnizca X/Y'de ve TMC2208'in KENDI donanim        #
-// #                       ozelligi olarak. Asagidaki INTERPOLATE ile ilgisi  #
-// #                       yok. Z/E0'daki HR4988SQ interpolasyon yapmaz.      #
+// # Actual hardware settings (verified, 2026-07-23):                         #
+// #   Current   : via Vref pot. X/Y 1.27 V, Z 1.60 V, E0 0.86 V.             #
+// #               R_sense = 0.15 ohm (R150), all drivers, 2 per coil.        #
+// #               Equivalent: X/Y 0.69 A RMS, Z 0.47 A/motor, E0 0.51 A RMS. #
+// #               Motors are Creality 42-40 (~1.0 A nominal) → 47-69%.       #
+// #   Microsteps: drivers soldered to the board, NO jumpers (verified via    #
+// #               board photo, 2026-07-24). MS1/MS2 hard-wired on the PCB,   #
+// #               not connected to the MCU, 16x → M350 does not work either. #
+// #   256x interpolation: only on X/Y, as TMC2208's OWN hardware feature.    #
+// #               Unrelated to the INTERPOLATE below. The HR4988SQ on Z/E0   #
+// #               does not interpolate.                                      #
 // #                                                                          #
-// # Blok, ileride UART'li bir surucuye gecilirse baslangic noktasi olsun     #
-// # diye korunuyor. O gun gelirse degerler gozden gecirilmelidir.            #
+// # The block is kept as a starting point in case a UART-capable driver is   #
+// # installed one day. If that day comes, the values must be reviewed.       #
 // ###########################################################################
 #if HAS_TRINAMIC
 
@@ -2279,12 +2282,12 @@
    * Define you own with
    * { <off_time[1..15]>, <hysteresis_end[-3..12]>, hysteresis_start[1..8] }
    */
-  // Sermoon D1: 24V PSU. ESKI YORUM YANLISTI — "HAS_TRINAMIC aktif oldugu icin
-  // bu deger TMCStepper init sirasinda kullanilir" diyordu; HAS_TRINAMIC bu
-  // kartta FALSE (bkz. blok basindaki aciklama), TMCStepper hic linklenmiyor.
-  // Chopper zamanlamasi her iki surucude de cipin kendi donanim varsayilanidir:
-  // TMC2208 stealthChop/spreadCycle otomatik, HR4988SQ sabit-kapali-zaman.
-  // Yazilimdan degistirilemez.
+  // Sermoon D1: 24V PSU. THE OLD COMMENT WAS WRONG — it claimed "this
+  // value is used during TMCStepper init because HAS_TRINAMIC is active";
+  // HAS_TRINAMIC is FALSE on this board (see the note at the top of the
+  // block), TMCStepper is never linked. Chopper timing on both drivers is
+  // the chip's own hardware default: TMC2208 stealthChop/spreadCycle
+  // automatic, HR4988SQ fixed-off-time. Cannot be changed from software.
   #define CHOPPER_TIMING CHOPPER_DEFAULT_24V
 
   /**
@@ -2374,10 +2377,10 @@
     //#define HOME_USING_SPREADCYCLE
   #endif
 
-  // NOT: IMPROVE_HOMING_RELIABILITY eskiden BURADAYDI (SD1-1.2). Bu blok
-  // `#if HAS_TRINAMIC` icinde oldugu ve bu kartta HAS_TRINAMIC false oldugu
-  // icin makro HIC TANIMLANMIYORDU — ayar sessizce etkisizdi. SD1-2.6'da
-  // Moved under "@section homing". The detail is there.
+  // NOTE: IMPROVE_HOMING_RELIABILITY used to be HERE (SD1-1.2). Because
+  // this block is inside `#if HAS_TRINAMIC` and HAS_TRINAMIC is false on
+  // this board, the macro was NEVER DEFINED — the setting was silently
+  // ineffective. Moved under "@section homing" in SD1-2.6. Details there.
 
   /**
    * Beta feature!
@@ -2770,16 +2773,17 @@
 #define SERMOON_Z_LOCK
 
 /**
- * KALDIRILDI — SERMOON_Z_LOCK_AUTO (Z hareketinde otomatik release/engage).
+ * REMOVED — SERMOON_Z_LOCK_AUTO (automatic release/engage on Z motion).
  *
- * This flag was never working: on_motion_start()/on_motion_end()
- * was defined but not called from anywhere in the code base (planner/stepper
- * hook was never written on the side). Turning it on did not change the behavior.
+ * This flag never worked: on_motion_start()/on_motion_end() were defined
+ * but never called from anywhere in the codebase (the planner/stepper
+ * hook was never written). Turning it on did not change behavior.
  *
- * If it is to be rewritten, the following must be measured first: gantry manually when lock is LOW
- * Can it be pushed? If the engage state does not already prevent Z movement
- * (current evidence suggests this — lock is always HIGH and the printer operates normally)
- * auto mode is unnecessary. For manual control, M888 is sufficient.
+ * If it is ever rewritten, measure first: can the gantry be pushed by
+ * hand while the lock is LOW? If the engaged state does not actually
+ * prevent Z movement (current evidence suggests so — the lock is always
+ * HIGH and the printer operates normally), an auto mode is unnecessary.
+ * For manual control, M888 is sufficient.
  */
 
 /**
@@ -2921,8 +2925,8 @@
  * Implement M486 to allow Marlin to skip objects
  */
 // Sermoon D1 optimizasyon (2026-05-23): default ON → OFF.
-// Multi-object cancelation icin parser'a 'O' case eklenir; cogu slicer
-// M486 kullanmaz. RAM/Flash tasarrufu. Gerekirse acabilir.
+// Multi-object cancellation would add an 'O' case to the parser; most
+// slicers do not use M486. RAM/Flash savings. Enable it if ever needed.
 //#define CANCEL_OBJECTS
 
 /**

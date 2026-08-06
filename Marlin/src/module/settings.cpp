@@ -341,24 +341,24 @@ typedef struct SettingsDataStruct {
 } SettingsData;
 
 /**
- * Ayar blogunun depoya sigdigini derleme zamaninda garanti et.
+ * Guarantee at compile time that the settings block fits the storage.
  *
- * Upstream'deki hali yorum satiriydi VE yanlisti: EEPROM_OFFSET'i hesaba
- * katmadigi icin son 100 byte'lik tasmayi kacirirdi.
+ * The upstream version was a comment AND wrong: it ignored EEPROM_OFFSET,
+ * so it missed an overflow of the last 100 bytes.
  *
- * Neden onemli: bu kart EEPROM_SETTINGS'i persistent_store_sdcard.cpp ile
- * karsilar — veriler HAL_eeprom_data[E2END+1] adli .bss dizisine yazilir,
- * sonra SD karta eeprom.dat olarak flush edilir. PersistentStore::write_data()
- * HICBIR sinir kontrolu yapmaz:
+ * Why it matters: this board serves EEPROM_SETTINGS via
+ * persistent_store_sdcard.cpp — data is written to a .bss array named
+ * HAL_eeprom_data[E2END+1], then flushed to the SD card as eeprom.dat.
+ * PersistentStore::write_data() does NO bounds checking:
  *     HAL_eeprom_data[pos + i] = value[i];
- * Dolayisiyla SettingsData buyudugunde M500 sessizce .bss'i tasirir ve
- * komsu global degiskenleri bozar. Derleme zamaninda yakalamak tek savunma.
+ * So as SettingsData grows, M500 silently overflows .bss and corrupts
+ * neighboring globals. Catching it at compile time is the only defense.
  *
- * Yazim EEPROM_OFFSET'ten baslar (settings.cpp icindeki eeprom_index).
+ * Writing starts at EEPROM_OFFSET (eeprom_index in settings.cpp).
  */
 static_assert(EEPROM_OFFSET + sizeof(SettingsData) <= E2END + 1,
-  "SettingsData depoya sigmiyor: EEPROM_OFFSET + sizeof(SettingsData) > E2END+1. "
-  "Ozellik kapatin veya pins_CREALITY.h'daki E2END'i buyutun.");
+  "SettingsData does not fit the storage: EEPROM_OFFSET + sizeof(SettingsData) > E2END+1. "
+  "Disable features or increase E2END in pins_CREALITY.h.");
 
 MarlinSettings settings;
 

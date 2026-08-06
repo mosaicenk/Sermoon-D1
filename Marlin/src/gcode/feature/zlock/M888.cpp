@@ -1,7 +1,7 @@
 /**
  * Marlin 3D Printer Firmware — Sermoon D1 fork
  *
- * M888 — Sermoon Z Lock manuel kontrol
+ * M888 — Sermoon Z Lock manual control
  */
 
 #include "../../../inc/MarlinConfig.h"
@@ -12,11 +12,11 @@
 #include "../../../feature/sermoon_zlock.h"
 
 /**
- * M888: Sermoon Z Lock kontrol
+ * M888: Sermoon Z Lock control
  *
- *   M888         Mevcut durumu raporla
- *   M888 S0      Z lock release (pinleri LOW yap)
- *   M888 S1      Z lock engage (pinleri HIGH yap, default)
+ *   M888         Report current state
+ *   M888 S0      Release Z lock (drive pins LOW)
+ *   M888 S1      Engage Z lock (drive pins HIGH, default)
  *
  * Example:
  *   M888         -> "Z Lock: ENGAGED"

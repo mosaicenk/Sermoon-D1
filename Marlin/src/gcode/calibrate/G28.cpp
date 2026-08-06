@@ -175,22 +175,25 @@
 
   #if !USE_SENSORLESS
     /**
-     * SD1-2.6: slow_homing_t upstream'de feature/tmc_util.h:375'te, UC katmanli
-     * guard altinda tanimli:  #if HAS_TRINAMIC -> #if USE_SENSORLESS ->
-     * #if ENABLED(IMPROVE_HOMING_RELIABILITY).  Ustelik o basligi G28.cpp
-     * yalnizca #if ENABLED(SENSORLESS_HOMING) ile include ediyor.
+     * SD1-2.6: upstream defines slow_homing_t at feature/tmc_util.h:375,
+     * under THREE nested guards:  #if HAS_TRINAMIC -> #if USE_SENSORLESS ->
+     * #if ENABLED(IMPROVE_HOMING_RELIABILITY). Moreover G28.cpp includes
+     * that header only under #if ENABLED(SENSORLESS_HOMING).
      *
-     * Yani upstream bu ozelligi sensorless homing'e BAGLAMIS. Oysa yaptigi
-     * tek sey planner'in X/Y ivmesini gecici dusurmek (asagidaki iki
-     * fonksiyon) — sensorless ile hicbir ilgisi yok, stallguard'a dokunmuyor.
+     * So upstream TIED this feature to sensorless homing. Yet all it does
+     * is temporarily lower the planner's X/Y acceleration (the two
+     * functions below) — nothing to do with sensorless, it does not touch
+     * stallguard.
      *
-     * Bu kartta X/Y TMC2208_STANDALONE, Z/E0 A4988 => HAS_TRINAMIC false,
-     * USE_SENSORLESS false. Tip erisilemez oldugundan makroyu tanimlamak
-     * tek basina derleme hatasi verir (olculdu: 'slow_homing_t' does not
-     * name a type). Tip bu yuzden burada, sensorless'tan bagimsiz tanimlanir.
+     * On this board X/Y TMC2208_STANDALONE, Z/E0 A4988 => HAS_TRINAMIC
+     * false, USE_SENSORLESS false. Since the type is unreachable, defining
+     * the macro alone is a compile error (measured: 'slow_homing_t' does
+     * not name a type). That is why the type is defined here, independent
+     * of sensorless.
      *
-     * USE_SENSORLESS true olan bir yapilandirmaya gecilirse tanim tmc_util.h'
-     * tan gelir ve bu blok devre disi kalir — cift tanim olusmaz.
+     * If a configuration with USE_SENSORLESS true is ever adopted, the
+     * definition comes from tmc_util.h and this block is disabled — no
+     * duplicate definition.
      */
     struct slow_homing_t {
       xy_ulong_t acceleration;

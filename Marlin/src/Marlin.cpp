@@ -446,8 +446,8 @@ void startOrResumeJob() {
 
 void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
 
-  // Sermoon Z Lock kontrolü artık feature/sermoon_zlock.cpp'de —
-  // init bir kez setup()'ta yapılıyor, sürekli pin yazma kaldırıldı.
+  // Sermoon Z Lock control now lives in feature/sermoon_zlock.cpp —
+  // init runs once in setup(); the continuous pin re-writing was removed.
 
   #if HAS_FILAMENT_SENSOR
     runout.run();
@@ -854,7 +854,7 @@ void setup() {
   HAL_init();
 
   #if ENABLED(SERMOON_Z_LOCK)
-    zlock.init();         // Sermoon Z lock — pinleri output, default engaged
+    zlock.init();         // Sermoon Z lock — set pins to output, engage by default
   #endif
 
   #if HAS_DRIVER(L6470)

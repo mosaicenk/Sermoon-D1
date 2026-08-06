@@ -39,18 +39,18 @@
 //
 /* I2C */
 // #define I2C_EEPROM
-// E2END = SON GECERLI ADRES (kapasite degil). BL24C16 = 16Kbit = 2048 byte
-// => gecerli aralik 0x000..0x7FF. Marlin bunu capacity() = E2END + 1 olarak
-// kullanir; 0x800 yazilirsa kapasite 2049 sanilir ve PLR_ADDR cipin disina
-// tasar (bkz. Configuration.h PLR_ADDR).
-#define E2END 0x7FF       // 16Kbit (24C16) — son gecerli adres
+// E2END = LAST VALID ADDRESS (not capacity). BL24C16 = 16Kbit = 2048 bytes
+// => valid range 0x000..0x7FF. Marlin uses it as capacity() = E2END + 1;
+// writing 0x800 would make the capacity look like 2049 and PLR_ADDR would
+// spill off the chip (see Configuration.h PLR_ADDR).
+#define E2END 0x7FF       // 16Kbit (24C16) — last valid address
 #define MYI2C_EEPROM      // EEPROM on I2C-0
 #define IIC_EEPROM_SDA       PA11
 #define IIC_EEPROM_SCL       PA12
 
-// NOT: Bu kartta EEPROM I2C uzerindedir (yukaridaki MYI2C_EEPROM, BL24C16).
-// SPI EEPROM ve flash-emulasyon secenekleri V4.3.1'de yoktur; kullanilmayan
-// alternatif tanimlar kafa karistirmamasi icin kaldirildi.
+// NOTE: On this board the EEPROM is on I2C (see MYI2C_EEPROM, BL24C16
+// above). SPI EEPROM and flash-emulation options do not exist on the
+// V4.3.1; the unused alternative definitions were removed to avoid confusion.
 
 //
 // Limit Switches
@@ -58,36 +58,37 @@
 #define X_MIN_PIN          PA5
 // #define X_MAX_PIN          PA4
 #define Y_MIN_PIN          PA6
-#define Z_MIN_PIN          PA7   // Mekanik endstop — Z homing bunu kullanir
+#define Z_MIN_PIN          PA7   // Mechanical endstop — Z homing uses this
 
 //
-// Z Probe — YOK
+// Z Probe — NONE
 //
-// Bu yazicida hicbir Z-probe takili degil: BLTouch yok, enduktif sensor yok.
-// Z homing mekanik endstop (PA7) ile yapilir.
+// This printer has no Z-probe installed: no BLTouch, no inductive sensor.
+// Z homing is done with the mechanical endstop (PA7).
 //
-// Board uzerindeki "BLTouch" konnektorunun PB0/PB1 pinleri Z LOCK modulune
-// ayrilmistir (bkz. asagidaki Z_KEEP_PIN_*). Bu yuzden buraya probe pini
-// TANIMLANMAZ — ayni pini hem output (Z lock) hem input (probe) yapmak
-// donanim catismasi yaratir.
+// The PB0/PB1 pins of the on-board "BLTouch" connector are reserved for the
+// Z LOCK module (see Z_KEEP_PIN_* below). That is why no probe pin is
+// defined here — driving the same pin as both output (Z lock) and input
+// (probe) would create a hardware conflict.
 //
-// Ileride probe eklenirse ONCE Configuration_adv.h'daki SERMOON_Z_LOCK
-// kapatilmalidir; ikisi ayni anda etkin OLAMAZ. SanityCheck.h bunu
-// derleme zamaninda yakalar. Kurulum notlari: MANUAL.md bolum 10.
+// If a probe is added later, SERMOON_Z_LOCK in Configuration_adv.h must be
+// disabled FIRST; the two can never be enabled at the same time.
+// SanityCheck.h catches this at compile time. Setup notes: MANUAL.md section 10.
 
 //
 // Steppers
 //
-// DIKKAT — TEK ENABLE HATTI: dort surucunun de EN girisi PC3'e baglidir.
-// Marlin bu pini eksen bazinda saymaz; disable_Z() cagrisi PC3'u pasife
-// cekerek X/Y/E0'i de birakir. Pratikte sorun cikarmaz cunku eksenler yalnizca
-// hepsi birden bosta kalinca (DEFAULT_STEPPER_DEACTIVE_TIME + tum
-// DISABLE_INACTIVE_* true) kapatilir. Sonucu olan iki kisit:
-//   1. Tek bir ekseni isinma nedeniyle bagimsiz kapatmak MUMKUN DEGIL.
-//      HR4988SQ'nun (Z/E0) isisi baski sirasinda yazilimla azaltilamaz;
-//      cozum donanimsal sogutma.
-//   2. Configuration.h'daki DISABLE_X/Y/Z/E hepsi false kalmalidir;
-//      birini true yapmak digerlerini de dusurur.
+// WARNING — SINGLE ENABLE LINE: all four drivers' EN inputs are tied to
+// PC3. Marlin does not count this pin per axis; a disable_Z() call pulls
+// PC3 inactive and releases X/Y/E0 as well. Not a problem in practice,
+// because the axes are only disabled when all of them are idle at once
+// (DEFAULT_STEPPER_DEACTIVE_TIME + all DISABLE_INACTIVE_* true). Two
+// practical constraints:
+//   1. Disabling a single axis independently because of heat is NOT
+//      POSSIBLE. HR4988SQ (Z/E0) heat cannot be reduced in software
+//      during a print; the solution is hardware cooling.
+//   2. DISABLE_X/Y/Z/E in Configuration.h must all stay false;
+//      setting one true brings the others down too.
 #define X_ENABLE_PIN       PC3
 #define X_STEP_PIN         PC2
 #define X_DIR_PIN          PB9
@@ -96,43 +97,48 @@
 #define Y_STEP_PIN         PB8
 #define Y_DIR_PIN          PB7
 
-// Z: bu TEK STEP/DIR/EN setine PARALEL iki motor baglidir (ikinci surucu YOK).
-// Bu yuzden Z2_* pin tanimlari ve Z2_DRIVER_TYPE bilerek tanimsiz birakildi.
+// Z: TWO motors are wired in PARALLEL to this SINGLE STEP/DIR/EN set (there
+// is no second driver). That is why the Z2_* pin definitions and
+// Z2_DRIVER_TYPE are deliberately left undefined.
 #define Z_ENABLE_PIN       PC3
 #define Z_STEP_PIN         PB6
 #define Z_DIR_PIN          PB5
 
-// E0 STEP/DIR = PB4/PB3 = JTAG hatti. Asagidaki DISABLE_DEBUG olmadan bu
-// pinler GPIO'ya donmez ve ekstruder hic hareket etmez.
+// E0 STEP/DIR = PB4/PB3 = JTAG lines. Without the DISABLE_DEBUG below these
+// pins never become GPIO and the extruder never moves.
 #define E0_ENABLE_PIN      PC3
 #define E0_STEP_PIN        PB4
 #define E0_DIR_PIN         PB3
 
 //
-// Surucu tipleri (Configuration.h *_DRIVER_TYPE) — KARMA:
+// Driver types (Configuration.h *_DRIVER_TYPE) — MIXED:
 //   X, Y  : TMC2208_STANDALONE
-//   Z, E0 : A4988 — fiziksel cip HR4988SQ. Marlin'de HR4988 tipi yok; A4988
-//           donanim uyumlu esdegeridir (ayni STEP/DIR/EN, ayni zamanlama).
-//           Gerekce ve global yan etkileri Configuration.h'da yazili.
+//   Z, E0 : A4988 — the physical chip is HR4988SQ. Marlin has no HR4988
+//           type; A4988 is the hardware-compatible equivalent (same
+//           STEP/DIR/EN, same timing). Rationale and global side effects
+//           are documented in Configuration.h.
 //
-// Ikisi de STANDALONE calisir: sadece STEP/DIR/EN; firmware surucuyle
-// KONUSMAZ. UART yok, bu yuzden M906 (akim), M569 (chop modu), M350
-// (mikroadim) ve sensorless homing kullanilamaz. Hem akim (Vref potu) hem
-// mikroadim (MS1/MS2, PCB'de sabit kablanmis — jumper yok) DONANIMDAN ayarlanir.
+// Both run STANDALONE: STEP/DIR/EN only; the firmware does NOT talk to the
+// drivers. No UART, so M906 (current), M569 (chop mode), M350 (microsteps)
+// and sensorless homing are unavailable. Both current (Vref pot) and
+// microstepping (MS1/MS2, hard-wired on the PCB — no jumpers) are set in
+// HARDWARE.
 //
-// Z'nin Vref'i ozel dikkat ister: iki motor paralel oldugu icin surucunun
-// verdigi akim ikiye bolunur.
+// Z's Vref needs special attention: the two motors are wired in parallel,
+// so the driver's output current is split in half.
 //
-// Buradaki eski *_HARDWARE_SERIAL / *_SERIAL_*_PIN tanimlari HAS_TMC220x
-// bloğunun icindeydi; standalone'da o makro false oldugu icin hicbir zaman
-// derlenmiyorlardi. Ustelik MSerial2 (USART2) gosteriyorlardi, oysa USART3
-// DWIN ekranina ayrilmis durumda. Yanlis izlenim vermemesi icin kaldirildi.
+// The former *_HARDWARE_SERIAL / *_SERIAL_*_PIN definitions here lived
+// inside the HAS_TMC220x block; since that macro is false in standalone
+// mode they never compiled. Worse, they pointed at MSerial2 (USART2) even
+// though USART3 is reserved for the DWIN screen. Removed to avoid giving
+// the wrong impression.
 //
 
 //
-// JTAG pinlerini GPIO'ya cevir. PB3 (JTDO) ve PB4 (JNTRST) E0_DIR/E0_STEP
-// olarak kullaniliyor; bu tanim olmadan ekstruder calismaz.
-// NOT: eski yorum "PB4 (Y_ENABLE_PIN)" diyordu — yanlisti, Y_ENABLE PC3'tur.
+// Remap JTAG pins to GPIO. PB3 (JTDO) and PB4 (JNTRST) are used as
+// E0_DIR/E0_STEP; without this definition the extruder does not work.
+// NOTE: the old comment said "PB4 (Y_ENABLE_PIN)" — that was wrong,
+// Y_ENABLE is PC3.
 //
 #define DISABLE_DEBUG
 
@@ -152,13 +158,15 @@
 #define FAN_SOFT_PWM
 
 //
-// Ekran: DWIN T5L, USART3 uzerinden RTS protokolu (SERIAL_PORT_2 = 3).
-// Ekranin kendi pinleri burada TANIMLANMAZ — surucu src/lcd/dwin/ altindadir.
+// Display: DWIN T5L, RTS protocol over USART3 (SERIAL_PORT_2 = 3).
+// The display's own pins are NOT defined here — the driver is under
+// src/lcd/dwin/.
 //
-// Bu noktada 12864 karakter-LCD ve DWIN-encoder varyantlarinin pin haritalari
-// yorum olarak duruyordu. Hicbiri Sermoon D1'de kullanilmiyor ve bazilari
-// aktif pinlerle celisiyordu (orn. PA4=CHECKFILEMENT, PA5/PA6/PA7=endstop).
-// Yanlislikla acilma riskini ortadan kaldirmak icin kaldirildi.
+// The pin maps of the 12864 character-LCD and DWIN-encoder variants used
+// to sit here as comments. None of them are used on the Sermoon D1, and
+// some conflicted with active pins (e.g. PA4=CHECKFILEMENT,
+// PA5/PA6/PA7=endstops). Removed to eliminate the risk of accidental
+// activation.
 //
 
 /* SD card detect */
@@ -172,10 +180,10 @@
   #define FIL_RUNOUT_PIN   PA4  // Same pin as CHECKFILEMENT_PIN (optical sensor)
 #endif
 
-/* Z轴锁定模块 — Z Lock modulu (SERMOON_Z_LOCK) */
-// Bu iki pin board'daki "BLTouch" konnektorune denk gelir. Probe TAKILI
-// OLMADIGI icin ikisi de Z lock'a ayrilmistir; her ikisi de OUTPUT olarak
-// surulur. Probe eklenecekse once SERMOON_Z_LOCK kapatilmalidir.
+/* Z轴锁定模块 — Z Lock module (SERMOON_Z_LOCK) */
+// These two pins map to the on-board "BLTouch" connector. Since NO probe
+// is installed, both are reserved for the Z lock and both are driven as
+// OUTPUT. If a probe is added, SERMOON_Z_LOCK must be disabled first.
 #define Z_KEEP_PIN_PB1   PB1  //对应板子上的IN
 #define Z_KEEP_PIN_PB0   PB0  //对应板子上的OUT
 

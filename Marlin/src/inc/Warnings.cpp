@@ -66,7 +66,7 @@
 // LIN_ADVANCE K calibration reminder
 //
 #if ENABLED(LIN_ADVANCE)
-  #pragma message ">>> Note: LIN_ADVANCE active. Direct drive Sermoon için K kalibre et (typ 0.02-0.15). See docs/lin_advance/."
+  #pragma message ">>> Note: LIN_ADVANCE active. Calibrate K for the direct-drive Sermoon (typ 0.02-0.15). See docs/lin_advance/."
 #endif
 
 //

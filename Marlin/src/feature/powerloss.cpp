@@ -55,23 +55,24 @@ uint32_t PrintJobRecovery::cmd_sdpos, // = 0
 
 #ifdef EEPROM_PLR
   /**
-   * PLR bolgesi BL24C16 EEPROM'unda iki kisiti birden saglamalidir:
+   * The PLR region must satisfy two constraints on the BL24C16 EEPROM:
    *
-   *  1) Cip sinirini asmamali (gecerli adres araligi 0..E2END).
-   *     Asarsa I2C kontrol byte'i cipin adres uzayi disina cikar, NAK gelir ve
-   *     yazilan byte sessizce kaybolur.
+   *  1) It must not cross the chip boundary (valid address range 0..E2END).
+   *     If it does, the I2C control byte leaves the chip's address space,
+   *     a NAK is returned and the written byte is silently lost.
    *
-   *  2) Tek bir 256-byte blogun icinde kalmali. 24C16'da blok-secim bitleri
-   *     kontrol byte'indadir, hafizanin adres sayacinda degil; sequential read
-   *     blogun sonunda ayni blogun basina sarar, bir sonrakine gecmez.
+   *  2) It must stay inside a single 256-byte block. On the 24C16 the
+   *     block-select bits live in the control byte, not in the memory
+   *     address counter; a sequential read wraps at the end of the block
+   *     back to the start of the SAME block, never advancing to the next.
    *
-   * Ikisi de sessiz veri bozulmasi uretir — bu yuzden derleme zamaninda
-   * yakalaniyor. job_recovery_info_t buyudugunde bu assert patlar.
+   * Both produce silent data corruption — that is why they are caught at
+   * compile time. If job_recovery_info_t grows, this assert fires.
    */
   static_assert(PLR_ADDR + sizeof(job_recovery_info_t) <= E2END + 1,
-    "PLR bolgesi EEPROM sinirini asiyor — pins_CREALITY.h'daki E2END'i kontrol edin.");
+    "PLR region crosses the EEPROM boundary — check E2END in pins_CREALITY.h.");
   static_assert(PLR_ADDR / 256 == (PLR_ADDR + sizeof(job_recovery_info_t) - 1) / 256,
-    "PLR bolgesi 24C16'nin 256-byte blok sinirini asiyor — PLR_ADDR blok icine cekilmeli.");
+    "PLR region crosses the 24C16 256-byte block boundary — PLR_ADDR must be pulled inside one block.");
 #endif
 
 #if ENABLED(FWRETRACT)

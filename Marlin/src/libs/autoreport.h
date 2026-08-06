@@ -9,11 +9,11 @@
  *   struct MyReporter { static void report() { ... } };
  *   AutoReporter<MyReporter> reporter;
  *   reporter.set_interval(seconds);   // M154/M155/etc.
- *   reporter.tick();                  // ana loop'tan periyodik çağrı
+ *   reporter.tick();                  // periodic call from the main loop
  *
  * Sermoon-specific notes:
- *   - PORT_REDIRECT desteği opsiyonel (Marlin 2.0.x'te tek port var)
- *   - millis() ve ELAPSED() macro'larına bağımlı
+ *   - PORT_REDIRECT support is optional (Marlin 2.0.x has a single port)
+ *   - depends on the millis() and ELAPSED() macros
  */
 #pragma once
 

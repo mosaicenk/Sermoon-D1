@@ -365,9 +365,10 @@ constexpr uint16_t PRINT_TIMEMIN_DATA_VP    = 0x140E;
 
 // --- Remaining time (Sermoon D1 2026-05-23: SHOW_REMAINING_TIME) ---
 // 0x1410 — remaining time (minutes). From M73 or elapsed/pct extrapolation.
-// DWIN ekran tasariminda bu VP'ye text alani baglanmali.
-// Mevcut DWIN firmware'inde kullanici ekraninda bu alan yoksa da yazilir;
-// kullanici gormez ama firmware hesaplamasi dogru calisir.
+// A text field must be bound to this VP in the DWIN screen design.
+// If the current DWIN firmware has no such field on the user screen, the
+// value is still written; the user does not see it, but the firmware
+// calculation runs correctly.
 constexpr uint16_t PRINT_REMAIN_MIN_VP       = 0x1410;
 
 constexpr uint16_t PRINT_SPEED_DATA_VP      = 0x1414;

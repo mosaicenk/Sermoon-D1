@@ -5,34 +5,37 @@
 Import("env")
 
 # ---------------------------------------------------------------------------
-# LINK asamasi — newlib-nano
+# LINK stage — newlib-nano
 #
-# Olcum: link komutunda --specs=nano.specs YOKTU (pio run -v ile dogrulandi),
-# yani TAM newlib'e linkleniyorduk. Sonuc: _svfprintf_r + _dtoa_r + _strtod_l +
-# _mprec ailesi 16.088 byte, newlib malloc 2.820 byte.
+# Measurement: the link command did NOT contain --specs=nano.specs (verified
+# with pio run -v), so we were linking against FULL newlib. Result:
+# _svfprintf_r + _dtoa_r + _strtod_l + _mprec family 16,088 bytes, newlib
+# malloc 2,820 bytes.
 #
-# Bu flag'ler Marlin/src/HAL/HAL_STM32F1/build_flags.py'nin SCons 'else:'
-# dalinda zaten yaziliydi, ancak o dosya extra_scripts'te listelenmedigi icin
-# o dal HIC calismiyordu — asagisi orijinal niyeti fiilen etkin kiliyor.
+# These flags were already written in the SCons 'else:' branch of
+# Marlin/src/HAL/HAL_STM32F1/build_flags.py, but that file is not listed in
+# extra_scripts, so the branch NEVER ran — the below makes the original
+# intent actually effective.
 #
-# -u_printf_float ZORUNLU: nano.specs'in printf'i varsayilan olarak %f
-# desteklemez. Marlin dtostrf() kullaniyor (powerloss recovery G-code uretimi,
-# M114 pozisyon raporu, LCD_RTS pause ekrani) ve dtostrf sprintf("%*.*f")
-# uzerinden calisir. Bu flag olmadan bu degerler bozuk basilir.
+# -u_printf_float is MANDATORY: nano.specs printf has no %f support by
+# default. Marlin uses dtostrf() (power-loss recovery G-code generation,
+# M114 position report, LCD_RTS pause screen) and dtostrf works via
+# sprintf("%*.*f"). Without this flag those values print garbage.
 # ---------------------------------------------------------------------------
-# cxx_runtime_min.cpp VARLIK NOBETCISI
+# cxx_runtime_min.cpp PRESENCE GUARD
 #
-# O dosya kaybolursa derleme sessizce basarili olur ve firmware ~28,8 KB
-# buyur (libstdc++'in zayif __verbose_terminate_handler'i geri gelir, o da
-# __cxa_demangle uzerinden tum isim cozumleyicisini yeniden linkler).
-# Asagidaki --require-defined sembolun TANIMLI olmasini sart kosar: dosya
-# yoksa link "symbol ... required but not defined" ile DURUR.
-# Sembol .set ile mutlak tanimli => 0 byte maliyet.
+# If that file goes missing, the build still succeeds silently and the
+# firmware grows by ~28.8 KB (libstdc++'s weak __verbose_terminate_handler
+# comes back, which re-links the whole name demangler via __cxa_demangle).
+# The --require-defined below mandates that the symbol is DEFINED: if the
+# file is absent the link STOPS with "symbol ... required but not defined".
+# The symbol is defined absolute via .set => 0 byte cost.
 #
-# --undefined DEGIL: o secenek sembolu yalnizca "undefined" olarak girer
-# (amaci arsivden modul cektirmek) ve cozumlenmeden kalirsa HATA VERMEZ.
-# Olculdu: --undefined ile dosya silindiginde link basariyla tamamlandi,
-# yani nobetci sessizce ise yaramiyordu. --require-defined dogru secenek.
+# NOT --undefined: that option only registers the symbol as "undefined"
+# (its purpose is pulling a module from an archive) and does NOT error if
+# it stays unresolved. Measured: with --undefined the link completed
+# successfully after the file was deleted — the guard silently did nothing.
+# --require-defined is the correct option.
 env.Append(LINKFLAGS=[
   "--specs=nano.specs",
   "-u_printf_float",
@@ -42,34 +45,34 @@ env.Append(LINKFLAGS=[
 env.Append(CXXFLAGS=[
   "-Wno-register",
 
-  # Marlin hicbir yerde throw/catch veya dynamic_cast/typeid kullanmaz.
-  # Bu flag'ler olmadan GCC her fonksiyon icin unwind tablosu uretir ve
-  # libsupc++'in istisna makinesini (_Unwind_*, __gxx_personality_v0,
-  # __cxa_*) binary'ye baglar.
+  # Marlin never uses throw/catch or dynamic_cast/typeid anywhere.
+  # Without these flags GCC emits an unwind table for every function and
+  # links libsupc++'s exception machinery (_Unwind_*, __gxx_personality_v0,
+  # __cxa_*) into the binary.
   #
-  # OLCUM (arm-none-eabi-nm): EH/unwind ailesi = 5.838 byte flash, 59 sembol.
+  # MEASURED (arm-none-eabi-nm): EH/unwind family = 5,838 bytes flash, 59 symbols.
   #
-  # CXXFLAGS'a konuyor, build_flags'a DEGIL: build_flags C dosyalarina da
-  # uygulanir ve GCC orada "valid for C++ but not for C" uyarisi verir.
+  # Placed in CXXFLAGS, NOT build_flags: build_flags also applies to C files
+  # and GCC warns "valid for C++ but not for C" there.
   "-fno-exceptions",
   "-fno-rtti",
   "-fno-unwind-tables",
   "-fno-asynchronous-unwind-tables",
 
-  # Fonksiyon-ici static'ler icin __cxa_guard_acquire/release uretilmesini
-  # engeller. Marlin tek is-parcacikli (ISR'ler C++ static init yapmaz), bu
-  # kilitler gereksiz. Ustelik guard fonksiyonlari libsupc++'tan cekildiginde
-  # yanlarinda istisna personality rutinini de getiriyorlardi.
+  # Prevents __cxa_guard_acquire/release emission for function-local statics.
+  # Marlin is single-threaded (ISRs do no C++ static init), so these locks
+  # are unnecessary. Worse, pulling the guard functions from libsupc++ also
+  # dragged in the exception personality routine.
   "-fno-threadsafe-statics",
 
-  # Global destructor kaydini __cxa_atexit yerine atexit'e cevirir. Gomulu
-  # hedefte main() hicbir zaman donmez; destructor'lar zaten calismaz.
+  # Registers global destructors with atexit instead of __cxa_atexit. On the
+  # embedded target main() never returns; destructors never run anyway.
   #
-  # NOT: Bu iki flag Marlin/src/HAL/HAL_STM32F1/build_flags.py icindeki SCons
-  # 'else:' dalinda da tanimli, ANCAK o dal hic calismiyor — dosya sadece
-  # "!python ..." ile stdout uretmek uzere cagriliyor, extra_scripts'te
-  # listelenmedigi icin Import("env") dali olu kod. Etkin olmalari icin
-  # buraya tasindilar.
+  # NOTE: These two flags are also defined in the SCons 'else:' branch of
+  # Marlin/src/HAL/HAL_STM32F1/build_flags.py, BUT that branch never runs —
+  # the file is only invoked via "!python ..." to produce stdout, and since
+  # it is not listed in extra_scripts its Import("env") branch is dead code.
+  # They were moved here to take effect.
   "-fno-use-cxa-atexit"
   #"-Wno-incompatible-pointer-types",
   #"-Wno-unused-const-variable",

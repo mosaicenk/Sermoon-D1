@@ -879,11 +879,11 @@ void Temperature::min_temp_error(const heater_ind_t heater) {
               ((pid_error_bed <= 0) && (PrinterStatusKey[1] == 1))
           )  
           {
-            // Isıtma tamamlandı
+            // Heating complete
             Update_Time_Value = RTS_UPDATE_VALUE;
             PrinterStatusKey[1] = 0;
           }
-          else if(  PrinterStatusKey[1] == 2   // Soğutma tamamlandı
+          else if(  PrinterStatusKey[1] == 2   // Cooling complete
                     &&
                     (
                       ((!temp_hotend[ee].target) && (pid_error >= -(room_temperature_hotend +5)))

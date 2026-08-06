@@ -3,7 +3,7 @@
  *
  * Sermoon Z Lock Module — implementation
  *
- * Bkz. sermoon_zlock.h
+ * See sermoon_zlock.h
  */
 
 #include "../inc/MarlinConfig.h"
@@ -16,7 +16,7 @@ SermoonZLock zlock;
 bool SermoonZLock::engaged = false;
 
 void SermoonZLock::init() {
-  // Pinleri output moda al
+  // Set pins to output mode
   SET_OUTPUT(Z_KEEP_PIN_PB0);
   SET_OUTPUT(Z_KEEP_PIN_PB1);
   // Engage at boot (compatible with current Sermoon firmware behavior)

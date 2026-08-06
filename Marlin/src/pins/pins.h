@@ -40,7 +40,7 @@
 #define HAS_FREE_AUX2_PINS !(BOTH(ULTRA_LCD, NEWPANEL) && ANY(PANEL_ONE, VIKI2, miniVIKI, MINIPANEL, REPRAPWORLD_KEYPAD))
 
 //
-// Sermoon D1 — yalnız Creality V4.3.1 (STM32F103RE) destekleniyor
+// Sermoon D1 — only Creality V4.3.1 (STM32F103RE) is supported
 //
 #if MB(CREALITY)
   #include "stm32/pins_CREALITY.h"            // STM32F1   env:creality

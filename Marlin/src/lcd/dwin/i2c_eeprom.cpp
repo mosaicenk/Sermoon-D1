@@ -227,13 +227,13 @@ uint32_t BL24CXX_ReadLenByte(uint16_t ReadAddr,uint8_t Len)
 
 
 // ============================================================
-// Sermoon D1 optimizasyonlari (2026-05-23)
+// Sermoon D1 optimizations (2026-05-23)
 // ============================================================
 
-// BL24CXX_Check — EEPROM wear azaltma.
-// Orijinal kod her boot'ta oku + (bulamazsa) yaz + oku yapardi.
-// `checked` flag'i ile bir boot oturumunda bir kez calisir.
-// 24C16 byte-write ~5ms blocking; tipik kullanimda ~5ms tasarrufu.
+// BL24CXX_Check — EEPROM wear reduction.
+// The original code did read + (if not found) write + read on every boot.
+// With the `checked` flag it runs once per boot session.
+// 24C16 byte-write is ~5ms blocking; ~5ms saved in typical use.
 uint8_t BL24CXX_Check(void)
 {
 	static bool checked = false;
@@ -247,15 +247,17 @@ uint8_t BL24CXX_Check(void)
 }
 
 // BL24CXX_Read — 24C16 sequential read kullanir.
-// Orijinal her byte icin ayri I2C start+stop yaparken, sequential read
-// tek start + N byte + stop ile ~2x hizlanma saglar.
-// 196-byte PLR struct okuma ~50ms yerine ~25ms.
+// The original did a separate I2C start+stop per byte; a sequential read
+// with a single start + N bytes + stop yields ~2x speedup.
+// Reading the 196-byte PLR struct takes ~25ms instead of ~50ms.
 //
-// KRITIK: 24C16 (ve altindaki tipler) 8 adet 256-byte blok olarak orgutlenmistir
-// ve blok-secim bitleri I2C kontrol byte'indadir, hafizanin adres sayacinda
-// DEGIL. Sequential read sirasinda sayac blogun sonunda ayni blogun basina
-// sarar — bir sonraki bloga GECMEZ. Bu yuzden her transaction 256-byte blok
-// sinirinda kesilmeli ve yeni blok icin yeni bir kontrol byte'i gonderilmelidir.
+// CRITICAL: the 24C16 (and smaller types) is organized as 8 blocks of 256
+// bytes, and the block-select bits live in the I2C control byte, NOT in
+// the memory address counter. During a sequential read the counter wraps
+// at the end of the block back to the start of the SAME block — it does
+// NOT advance to the next block. That is why every transaction must be
+// cut at the 256-byte block boundary and a new control byte must be sent
+// for the new block.
 void BL24CXX_Read(uint16_t ReadAddr,uint8_t *pBuffer,uint16_t NumToRead)
 {
 	while (NumToRead) {
@@ -274,7 +276,7 @@ void BL24CXX_Read(uint16_t ReadAddr,uint8_t *pBuffer,uint16_t NumToRead)
 			IIC_Send_Byte(0xA1);
 			IIC_Wait_Ack();
 		} else {
-			// Bu transaction'i mevcut 256-byte blogun sonunda kes
+			// Cut this transaction at the end of the current 256-byte block
 			const uint16_t block_left = 256 - (ReadAddr % 256);
 			if (chunk > block_left) chunk = block_left;
 			const uint8_t block_bits = (uint8_t)((ReadAddr / 256) << 1);
@@ -298,15 +300,16 @@ void BL24CXX_Read(uint16_t ReadAddr,uint8_t *pBuffer,uint16_t NumToRead)
 	}
 }
 
-// BL24CXX_Write — 24C16 page write kullanir.
-// 16-byte page boundary'ye kadar byte'lari tek I2C transaction'a gruplar.
-// 196-byte PLR yazma ~1000ms yerine ~65ms (~15x).
+// BL24CXX_Write — uses 24C16 page write.
+// Groups bytes into a single I2C transaction up to the 16-byte page
+// boundary. Writing the 196-byte PLR takes ~65ms instead of ~1000ms (~15x).
 //
-// Blok sinirlari icin ek onlem GEREKMEZ: kontrol byte'i her sayfa icin
-// yeniden hesaplanir ve 16 (sayfa) sayisi 256'yi (blok) tam boldugu icin
-// hicbir sayfa blok sinirini asamaz.
-// Cagiranin sorumlulugu: WriteAddr + NumToWrite - 1 <= E2END olmalidir.
-// Aksi halde kontrol byte'i cipin adres araligi disina cikar ve NAK alinir.
+// NO extra measure needed for block boundaries: the control byte is
+// recomputed for every page, and since 16 (page) divides 256 (block)
+// evenly, no page can cross a block boundary.
+// Caller's responsibility: WriteAddr + NumToWrite - 1 <= E2END.
+// Otherwise the control byte leaves the chip's address range and a NAK
+// is returned.
 #define EEPROM_PAGE_SIZE 16
 void BL24CXX_Write(uint16_t WriteAddr,uint8_t *pBuffer,uint16_t NumToWrite)
 {

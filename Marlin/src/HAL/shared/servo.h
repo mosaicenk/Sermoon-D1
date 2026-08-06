@@ -25,7 +25,7 @@
  * servo.h - Interrupt driven Servo library for Arduino using 16 bit timers- Version 2
  * Copyright (c) 2009 Michael Margolis.  All right reserved.
  *
- * Sermoon D1: Yalnız STM32F1 (Creality V4.3.1) hedefleniyor.
+ * Sermoon D1: Only STM32F1 (Creality V4.3.1) is targeted.
  */
 
 #if defined(__STM32F1__) || defined(TARGET_STM32F1)
