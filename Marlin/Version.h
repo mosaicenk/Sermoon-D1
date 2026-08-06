@@ -37,20 +37,14 @@
  * on-screen character space limited to ~14 characters; long strings can be trimmed.
  */
 // ###########################################################################
-// # UYARI — BU DOSYAYI DEGISTIRDIKTEN SONRA TEMIZ DERLEME SART.             #
-// #                                                                          #
-// # Bu dosya MarlinConfigPre.h:42'de MAKRO ile dahil ediliyor:               #
-// #     #include XSTR(../../CUSTOM_VERSION_FILE)                             #
-// # SCons'un C tarayicisi makro-genisletmeli include yolunu cozemez, bu      #
-// # yuzden Marlin/Version.h bagimlilik grafiginde YER ALMAZ.                 #
-// #                                                                          #
-// # OLCULDU (2026-07-27): burayi degistirip `pio run` calistirmak            #
-// # 0 birim derledi ve binary'yi degistirmedi. Temiz derlemede ayni          #
-// # degisiklik -8 byte uretti (127.120 -> 127.112).                          #
-// #                                                                          #
-// # SONUC: versiyonu yukseltip artimli derlerseniz firmware SESSIZCE ESKI    #
-// # surum dizesini tasir. Her zaman:                                         #
-// #     rm -rf .pio/build/creality && pio run -e creality                    #
+// # NOTE: This file is included via macro expansion (MarlinConfigPre.h:42   #
+// #   #include XSTR(../../CUSTOM_VERSION_FILE)), so the SCons C scanner     #
+// # cannot resolve the include path and Version.h is NOT in the dependency  #
+// # graph. buildroot/share/PlatformIO/scripts/version-stamp.py injects this #
+// # file's content hash as a build flag, forcing a full rebuild on change   #
+// # (the old manual `rm -rf .pio/build/creality` step, automated).          #
+// # Measured before the fix (2026-07-27): an incremental `pio run` compiled #
+// # 0 units and the binary kept the OLD version string silently.            #
 // ###########################################################################
 //
 // Must be kept THE SAME as the fork version: CHANGELOG.md header, README "Version"
